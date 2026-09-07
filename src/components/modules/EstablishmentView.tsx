@@ -5,7 +5,7 @@ import {
   Search,
   Filter,
   Download,
-  Printer,
+  QrCode,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
@@ -21,15 +21,18 @@ import {
   Eye,
   ExternalLink,
   ChevronDown,
-  Award,
+  Printer,
   Calendar,
-  Layers,
-  BarChart3,
-  ClipboardCheck,
-  FileText,
+  DollarSign,
+  TrendingUp,
+  FileSpreadsheet,
+  AlertCircle,
   X,
   Check,
-  DollarSign
+  Sparkles,
+  BarChart3,
+  Award,
+  ClipboardList
 } from 'lucide-react';
 import {
   BarChart,
@@ -51,7 +54,23 @@ import {
   DOTAccreditationStatus,
   InspectionRecord
 } from '../../types';
-import { printElement } from '../../utils/printEngine';
+import { QRCodeModal } from '../common/QRCodeModal';
+
+type SubTabKey = 'all' | 'compliance' | 'inspections' | 'renewals' | 'analytics';
+
+const ALL_CATEGORIES: EstablishmentCategory[] = [
+  'Resorts',
+  'Hotels',
+  'Homestays',
+  'Restaurants',
+  'Cafés',
+  'Souvenir Shops',
+  'Adventure Sites',
+  'Eco Parks',
+  'Campsites',
+  'Farm Tourism',
+  'Event Venues',
+];
 
 export const EstablishmentView: React.FC = () => {
   const {
@@ -60,46 +79,39 @@ export const EstablishmentView: React.FC = () => {
     updateEstablishment,
     deleteEstablishment,
     isReadOnly,
-    municipalityInfo
+    currentUser,
+    municipalityInfo,
   } = useTourism();
+
+  // Navigation Sub-tab
+  const [activeTab, setActiveTab] = useState<SubTabKey>('all');
 
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('ALL');
-  const [filterAccreditation, setFilterAccreditation] = useState('ALL');
-  const [filterStatus, setFilterStatus] = useState('ALL');
-  const [filterBarangay, setFilterBarangay] = useState('ALL');
-
-  // Sub-tabs navigation
-  const [activeTab, setActiveTab] = useState<'all' | 'compliance' | 'inspections' | 'economic'>('all');
+  const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [filterAccreditation, setFilterAccreditation] = useState<string>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterBarangay, setFilterBarangay] = useState<string>('ALL');
 
   // Modals
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [certModalOpen, setCertModalOpen] = useState(false);
-  const [certifiedEst, setCertifiedEst] = useState<TourismEstablishment | null>(null);
-  const [inspectionModalOpen, setInspectionModalOpen] = useState(false);
-  const [inspectingEst, setInspectingEst] = useState<TourismEstablishment | null>(null);
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [selectedEst, setSelectedEst] = useState<TourismEstablishment | null>(null);
+  const [dossierModalOpen, setDossierModalOpen] = useState(false);
+  const [inspectModalOpen, setInspectModalOpen] = useState(false);
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
 
   // New Inspection Form State
   const [newInspection, setNewInspection] = useState<Omit<InspectionRecord, 'id'>>({
     date: new Date().toISOString().substring(0, 10),
-    inspector: 'Joint Inspection Team (MTO, BFP, MHO, MENRO)',
+    inspector: currentUser.name,
     rating: 95,
-    findings: 'Compliant with sanitation standards, fire safety exits clear, staff certified in basic first aid.',
+    findings: 'Passed all municipal health, sanitary, and environmental compliance parameters.',
     status: 'Passed',
   });
 
-  // Unique Barangays
-  const barangayList = useMemo(() => {
-    const set = new Set<string>();
-    establishments.forEach((e) => {
-      if (e.barangay) set.add(e.barangay);
-    });
-    return Array.from(set).sort();
-  }, [establishments]);
-
-  // Form Initial Data
+  // Form Initial Data (all 17 docx fields)
   const initialForm: Omit<TourismEstablishment, 'id'> = {
     name: '',
     owner: '',
@@ -120,24 +132,33 @@ export const EstablishmentView: React.FC = () => {
     businessStatus: 'Active & Operating',
     inspectionHistory: [
       {
-        id: `INS-${Date.now()}`,
+        id: `INS-${Date.now().toString().slice(-4)}`,
         date: new Date().toISOString().substring(0, 10),
-        inspector: 'MTO & BFP Joint Inspection Team',
-        rating: 94,
-        findings: 'Fully compliant with DOT standards, fire safety code, and municipal sanitation guidelines.',
+        inspector: currentUser.name || 'MTO Inspection Team',
+        rating: 92,
+        findings: 'Fully compliant with DOT standards and municipal tourism code.',
         status: 'Passed',
-      }
+      },
     ],
     renewalSchedule: '2027-01-20',
     photoUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=600&q=80',
   };
   const [formData, setFormData] = useState(initialForm);
 
-  // Filtered List
+  // Unique Barangays
+  const uniqueBarangays = useMemo(() => {
+    const set = new Set<string>();
+    establishments.forEach((e) => {
+      if (e.barangay) set.add(e.barangay);
+    });
+    return Array.from(set).sort();
+  }, [establishments]);
+
+  // Filtered Establishments
   const filtered = useMemo(() => {
     return establishments.filter((est) => {
       const matchesSearch =
-        searchTerm.trim() === '' ||
+        !searchTerm.trim() ||
         est.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         est.owner.toLowerCase().includes(searchTerm.toLowerCase()) ||
         est.barangay.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -147,44 +168,54 @@ export const EstablishmentView: React.FC = () => {
       const matchesCategory = filterCategory === 'ALL' || est.category === filterCategory;
       const matchesAccred = filterAccreditation === 'ALL' || est.dotAccreditationStatus === filterAccreditation;
       const matchesStatus = filterStatus === 'ALL' || est.businessStatus === filterStatus;
-      const matchesBrgy = filterBarangay === 'ALL' || est.barangay === filterBarangay;
+      const matchesBarangay = filterBarangay === 'ALL' || est.barangay === filterBarangay;
 
-      return matchesSearch && matchesCategory && matchesAccred && matchesStatus && matchesBrgy;
+      return matchesSearch && matchesCategory && matchesAccred && matchesStatus && matchesBarangay;
     });
   }, [establishments, searchTerm, filterCategory, filterAccreditation, filterStatus, filterBarangay]);
 
-  // Analytics
+  // Key Analytics Aggregates
   const totalCount = establishments.length;
   const accreditedCount = establishments.filter((e) => e.dotAccreditationStatus === 'Accredited').length;
   const pendingCount = establishments.filter(
     (e) => e.dotAccreditationStatus === 'Application Pending' || e.dotAccreditationStatus === 'Under Inspection'
   ).length;
-  const renewalCount = establishments.filter((e) => e.dotAccreditationStatus === 'Expired / For Renewal').length;
   const totalJobs = establishments.reduce((sum, e) => sum + e.numberOfEmployees, 0);
   const totalCapital = establishments.reduce((sum, e) => sum + (e.investmentCost || 0), 0);
   const totalRevenue = establishments.reduce((sum, e) => sum + (e.annualRevenue || 0), 0);
+  const accreditationRate = totalCount > 0 ? Math.round((accreditedCount / totalCount) * 100) : 0;
 
-  // Economic Chart Data
-  const jobsByCategory = useMemo(() => {
-    const map: Record<string, { category: string; jobs: number; capitalM: number }> = {};
+  // Category Distribution for Analytics Chart
+  const categoryChartData = useMemo(() => {
+    const map: Record<string, { count: number; employees: number; capital: number }> = {};
     establishments.forEach((e) => {
-      if (!map[e.category]) {
-        map[e.category] = { category: e.category, jobs: 0, capitalM: 0 };
-      }
-      map[e.category].jobs += e.numberOfEmployees || 0;
-      map[e.category].capitalM += (e.investmentCost || 0) / 1000000;
+      if (!map[e.category]) map[e.category] = { count: 0, employees: 0, capital: 0 };
+      map[e.category].count += 1;
+      map[e.category].employees += e.numberOfEmployees;
+      map[e.category].capital += e.investmentCost || 0;
     });
-    return Object.values(map).sort((a, b) => b.jobs - a.jobs);
+
+    return Object.entries(map).map(([name, val]) => ({
+      name,
+      establishments: val.count,
+      employees: val.employees,
+      capitalMillions: Math.round((val.capital / 1000000) * 10) / 10,
+    }));
   }, [establishments]);
 
-  const accreditationShareData = useMemo(() => [
-    { name: 'DOT Accredited', value: accreditedCount, color: '#059669' },
-    { name: 'Application Pending', value: establishments.filter((e) => e.dotAccreditationStatus === 'Application Pending').length, color: '#3b82f6' },
-    { name: 'Under Inspection', value: establishments.filter((e) => e.dotAccreditationStatus === 'Under Inspection').length, color: '#8b5cf6' },
-    { name: 'For Renewal / Expired', value: renewalCount, color: '#f59e0b' },
-    { name: 'Not Accredited', value: establishments.filter((e) => e.dotAccreditationStatus === 'Not Accredited').length, color: '#94a3b8' },
-  ].filter((d) => d.value > 0), [establishments, accreditedCount, renewalCount]);
+  // Accreditation Breakdown Chart Data
+  const accreditationChartData = useMemo(() => {
+    const map: Record<string, number> = {};
+    establishments.forEach((e) => {
+      map[e.dotAccreditationStatus] = (map[e.dotAccreditationStatus] || 0) + 1;
+    });
 
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [establishments]);
+
+  const COLORS = ['#059669', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+  // Form Handlers
   const handleOpenForm = (est?: TourismEstablishment) => {
     if (est) {
       setEditingId(est.id);
@@ -198,7 +229,7 @@ export const EstablishmentView: React.FC = () => {
         email: est.email,
         businessPermitNumber: est.businessPermitNumber,
         dotAccreditationStatus: est.dotAccreditationStatus,
-        dotAccreditationNumber: est.dotAccreditationNumber,
+        dotAccreditationNumber: est.dotAccreditationNumber || '',
         numberOfEmployees: est.numberOfEmployees,
         investmentCost: est.investmentCost,
         annualRevenue: est.annualRevenue,
@@ -212,7 +243,11 @@ export const EstablishmentView: React.FC = () => {
       });
     } else {
       setEditingId(null);
-      setFormData(initialForm);
+      setFormData({
+        ...initialForm,
+        businessPermitNumber: `BP-MLG-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        dotAccreditationNumber: `DOT-R12-ACC-${Math.floor(1000 + Math.random() * 9000)}`,
+      });
     }
     setIsFormOpen(true);
   };
@@ -229,29 +264,19 @@ export const EstablishmentView: React.FC = () => {
     setIsFormOpen(false);
   };
 
-  const handleOpenCertificate = (est: TourismEstablishment) => {
-    setCertifiedEst(est);
-    setCertModalOpen(true);
+  // Open Inspection Center Modal
+  const handleOpenInspections = (est: TourismEstablishment) => {
+    setSelectedEst(est);
+    setInspectModalOpen(true);
   };
 
-  const handleOpenInspectionModal = (est: TourismEstablishment) => {
-    setInspectingEst(est);
-    setNewInspection({
-      date: new Date().toISOString().substring(0, 10),
-      inspector: 'MTO & BFP Joint Inspection Team',
-      rating: 92,
-      findings: 'Premises clean, emergency lights operational, staff equipped with uniforms and ID cards.',
-      status: 'Passed',
-    });
-    setInspectionModalOpen(true);
-  };
-
-  const handleSaveInspection = (e: React.FormEvent) => {
+  // Record New Inspection Log
+  const handleRecordInspection = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inspectingEst) return;
+    if (!selectedEst) return;
 
-    const record: InspectionRecord = {
-      id: `INS-${Date.now()}`,
+    const newRec: InspectionRecord = {
+      id: `INS-${Date.now().toString().slice(-4)}`,
       date: newInspection.date,
       inspector: newInspection.inspector,
       rating: Number(newInspection.rating),
@@ -259,44 +284,66 @@ export const EstablishmentView: React.FC = () => {
       status: newInspection.status,
     };
 
-    const updatedHistory = [record, ...(inspectingEst.inspectionHistory || [])];
-    updateEstablishment(inspectingEst.id, {
-      inspectionHistory: updatedHistory,
-      dotAccreditationStatus: record.status === 'Passed' ? 'Accredited' : 'Under Inspection',
-    });
+    const updatedHistory = [newRec, ...(selectedEst.inspectionHistory || [])];
+    updateEstablishment(selectedEst.id, { inspectionHistory: updatedHistory });
+    setSelectedEst({ ...selectedEst, inspectionHistory: updatedHistory });
 
-    setInspectionModalOpen(false);
-    setInspectingEst(null);
+    setNewInspection({
+      date: new Date().toISOString().substring(0, 10),
+      inspector: currentUser.name,
+      rating: 95,
+      findings: 'Routine follow-up inspection conducted.',
+      status: 'Passed',
+    });
   };
 
+  // Open Dossier Modal
+  const handleOpenDossier = (est: TourismEstablishment) => {
+    setSelectedEst(est);
+    setDossierModalOpen(true);
+  };
+
+  // Open Certificate Modal
+  const handleOpenCertificate = (est: TourismEstablishment) => {
+    setSelectedEst(est);
+    setCertificateModalOpen(true);
+  };
+
+  // Open QR Pass Modal (Properly wired!)
+  const handleOpenQR = (est: TourismEstablishment) => {
+    setSelectedEst(est);
+    setQrModalOpen(true);
+  };
+
+  // Export Complete CSV with all 17 fields
   const handleExportCSV = () => {
     const headers = [
       'Establishment Name',
       'Proprietor / Owner',
       'Category',
+      'Complete Address',
       'Barangay',
-      'Address',
       'Contact Number',
-      'Email',
-      'Business Permit No.',
+      'Email Address',
+      'Business Permit Number',
       'DOT Accreditation Status',
-      'DOT Accreditation No.',
-      'Staff Count',
-      'Declared Capital (PHP)',
-      'Annual Revenue (PHP)',
-      'Environmental ECC/CNC',
-      'Fire Safety Certificate',
-      'Public Liability Insurance',
-      'Operating Status',
-      'Next Renewal Schedule',
+      'DOT Accreditation Number',
+      'Number of Employees',
+      'Investment Capital (PHP)',
+      'Annual Gross Revenue (PHP)',
+      'Environmental Compliance',
+      'Safety Compliance',
+      'Insurance Coverage',
+      'Business Status',
+      'Renewal Schedule',
     ];
 
     const rows = filtered.map((e) => [
-      `"${e.name.replace(/"/g, '""')}"`,
-      `"${e.owner.replace(/"/g, '""')}"`,
+      `"${e.name}"`,
+      `"${e.owner}"`,
       `"${e.category}"`,
-      `"${e.barangay}"`,
       `"${e.address.replace(/"/g, '""')}"`,
+      `"${e.barangay}"`,
       `"${e.contactNumber}"`,
       `"${e.email}"`,
       `"${e.businessPermitNumber}"`,
@@ -316,233 +363,160 @@ export const EstablishmentView: React.FC = () => {
     const encoded = encodeURI(csvContent);
     const link = document.createElement('a');
     link.href = encoded;
-    link.download = `Malungon_Tourism_Establishments_Registry_${new Date().toISOString().substring(0, 10)}.csv`;
+    link.download = `Malungon_Tourism_Establishments_Roster_${new Date().toISOString().substring(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Module Title Header */}
-      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                <Building2 className="w-3.5 h-3.5 text-blue-700" />
-                TOURISM ENTERPRISE & ACCREDITATION SYSTEM (TEAS)
-              </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                Republic Act 9593 Section 39 Compliant
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Tourism Establishment Database & Accreditation Management
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-3xl">
-              Statutory registry of primary and secondary tourism enterprises in Malungon: accommodation establishments, resorts, dining, ecoparks, joint inspection audits, and official LGU accreditation certificates.
-            </p>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      {/* Top Banner / Welcome & Controls */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+            <Building2 className="w-4 h-4" />
+            <span>Module C • Enterprise Database & Compliance</span>
           </div>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            Tourism Establishment Database (TED)
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+            Official registry of tourism enterprises, resorts, hotels, homestays, and dining establishments in Malungon with DOT accreditation, safety audits, and renewal schedules.
+          </p>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 text-xs font-semibold shadow-2xs transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export Roster CSV</span>
+          </button>
+
+          {!isReadOnly && (
             <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors"
-              title="Download DOT Certified Roster CSV"
+              onClick={() => handleOpenForm()}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
             >
-              <Download className="w-3.5 h-3.5 text-slate-500" />
-              <span>Export Roster CSV</span>
+              <Plus className="w-4 h-4" />
+              <span>Register Enterprise</span>
             </button>
-            <button
-              onClick={() => {
-                printElement('establishment-directory-table', {
-                  title: 'Official_Tourism_Establishment_Directory_Malungon',
-                  landscape: true,
-                });
-              }}
-              className="inline-flex items-center space-x-1.5 px-3 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-50 shadow-2xs transition-colors"
-              title="Print Current Directory"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-500" />
-              <span>Print Directory</span>
-            </button>
-            {!isReadOnly && (
-              <button
-                onClick={() => handleOpenForm()}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Register Enterprise</span>
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* KPI Performance Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Enterprises */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Total Enterprises</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-              <Building2 className="w-4 h-4" />
-            </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Registered Enterprises</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{totalCount}</div>
+          <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
+            <span className="text-emerald-700 font-bold">{accreditedCount} DOT Accredited</span>
+            <span className="font-extrabold text-slate-800">{accreditationRate}%</span>
           </div>
-          <div className="text-2xl font-black text-slate-900 mt-2">{totalCount} Establishments</div>
-          <div className="text-[11px] text-blue-700 font-medium mt-1 flex justify-between">
-            <span>Active across {barangayList.length} Barangays</span>
-            <span className="font-bold">100% Mapped</span>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${accreditationRate}%` }}></div>
           </div>
         </div>
 
-        {/* DOT Accreditation Rate */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">DOT Accreditation</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-emerald-800 mt-2">
-            {accreditedCount} <span className="text-xs font-normal text-slate-400">({Math.round((accreditedCount / (totalCount || 1)) * 100)}%)</span>
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex justify-between">
-            <span className="text-emerald-700 font-semibold">{pendingCount} in pipeline</span>
-            <span className="text-amber-600 font-medium">{renewalCount} due renewal</span>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tourism Labor Force</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">{totalJobs} Jobs</div>
+          <div className="text-xs text-slate-500 mt-1">Direct local employment in municipal tourism</div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div className="bg-blue-600 h-full rounded-full" style={{ width: '85%' }}></div>
           </div>
         </div>
 
-        {/* Labor Force */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tourism Workforce</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Declared Capital Inflow</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-800 mt-1">
+            ₱{(totalCapital / 1000000).toFixed(1)}M
           </div>
-          <div className="text-xl font-black text-slate-900 mt-2">{totalJobs} Jobs</div>
-          <div className="text-[11px] text-slate-500 mt-1 flex justify-between">
-            <span>Direct local employment</span>
-            <span className="text-indigo-600 font-semibold">92% Local Hire</span>
+          <div className="text-xs text-slate-500 mt-1">Aggregate investment in tourism facilities</div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div className="bg-emerald-600 h-full rounded-full" style={{ width: '78%' }}></div>
           </div>
         </div>
 
-        {/* Capital Investment Inflow */}
-        <div className="bg-white p-4.5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Capital Investment</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
-              <Coins className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-xl font-black text-slate-900 mt-2">₱{(totalCapital / 1000000).toFixed(1)}M</div>
-          <div className="text-[11px] text-slate-500 mt-1 flex justify-between">
-            <span>Annual Gross: ₱{(totalRevenue / 1000000).toFixed(1)}M</span>
-            <span className="text-emerald-700 font-semibold">+14.2% YoY</span>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accreditation Pipeline</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-1">{pendingCount} Pending</div>
+          <div className="text-xs text-slate-500 mt-1">Under inspection or evaluation for 2026</div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+            <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(100, pendingCount * 25)}%` }}></div>
           </div>
         </div>
       </div>
 
-      {/* Sub-Navigation Tabs */}
-      <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-xs flex flex-wrap gap-1 text-xs font-semibold">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'all'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Building2 className="w-3.5 h-3.5" />
-          <span>All Enterprises Directory ({filtered.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('compliance')}
-          className={`px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'compliance'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <ClipboardCheck className="w-3.5 h-3.5" />
-          <span>Accreditation & Compliance Matrix</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inspections')}
-          className={`px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'inspections'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <FileCheck className="w-3.5 h-3.5" />
-          <span>Joint Inspection & Audit Log</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('economic')}
-          className={`px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-            activeTab === 'economic'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <BarChart3 className="w-3.5 h-3.5" />
-          <span>Economic & Labor Footprint</span>
-        </button>
+      {/* 5 Operational Sub-Tabs */}
+      <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap gap-1.5 text-xs font-bold">
+        {[
+          { key: 'all', label: `All Establishments Roster (${filtered.length})`, icon: Building2 },
+          { key: 'compliance', label: 'DOT Accreditation & Safety Compliance', icon: ShieldCheck },
+          { key: 'inspections', label: 'Inspection History & Audit Center', icon: ClipboardList },
+          { key: 'renewals', label: 'Permit Renewal Calendar', icon: Calendar },
+          { key: 'analytics', label: 'Economic & Labor Analytics', icon: BarChart3 },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as SubTabKey)}
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-blue-700 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* ========================================================================= */}
-      {/* TAB 1: ALL ENTERPRISES DIRECTORY                                          */}
-      {/* ========================================================================= */}
+      {/* SUB-TAB 1: ALL ESTABLISHMENTS ROSTER */}
       {activeTab === 'all' && (
-        <div className="space-y-4">
-          {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[220px]">
+        <div className="space-y-4 animate-in fade-in">
+          {/* Filter Toolbar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="relative flex-1 min-w-[240px]">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search business name, owner, permit number, or barangay..."
+                placeholder="Search by business name, owner, permit number, or barangay..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
-            {/* Filter Dropdowns */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Category Filter */}
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="py-1.5 px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+                className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500"
               >
-                <option value="ALL">All Categories</option>
-                <option value="Resorts">Resorts</option>
-                <option value="Hotels">Hotels</option>
-                <option value="Homestays">Homestays</option>
-                <option value="Restaurants">Restaurants</option>
-                <option value="Cafés">Cafés</option>
-                <option value="Souvenir Shops">Souvenir Shops</option>
-                <option value="Adventure Sites">Adventure Sites</option>
-                <option value="Eco Parks">Eco Parks</option>
-                <option value="Campsites">Campsites</option>
-                <option value="Farm Tourism">Farm Tourism</option>
-                <option value="Event Venues">Event Venues</option>
+                <option value="ALL">All Categories (11)</option>
+                {ALL_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
 
+              {/* DOT Accreditation Filter */}
               <select
                 value={filterAccreditation}
                 onChange={(e) => setFilterAccreditation(e.target.value)}
-                className="py-1.5 px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+                className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500"
               >
-                <option value="ALL">All Accreditation</option>
+                <option value="ALL">All Accreditation Statuses</option>
                 <option value="Accredited">DOT Accredited</option>
                 <option value="Application Pending">Application Pending</option>
                 <option value="Under Inspection">Under Inspection</option>
@@ -550,129 +524,118 @@ export const EstablishmentView: React.FC = () => {
                 <option value="Not Accredited">Not Accredited</option>
               </select>
 
+              {/* Barangay Filter */}
               <select
                 value={filterBarangay}
                 onChange={(e) => setFilterBarangay(e.target.value)}
-                className="py-1.5 px-3 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-blue-600"
+                className="py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium focus:ring-1 focus:ring-blue-500"
               >
                 <option value="ALL">All Barangays</option>
-                {barangayList.map((b) => (
-                  <option key={b} value={b}>
-                    Brgy. {b}
+                {uniqueBarangays.map((bgy) => (
+                  <option key={bgy} value={bgy}>
+                    Brgy. {bgy}
                   </option>
                 ))}
               </select>
+
+              {(searchTerm || filterCategory !== 'ALL' || filterAccreditation !== 'ALL' || filterBarangay !== 'ALL') && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterCategory('ALL');
+                    setFilterAccreditation('ALL');
+                    setFilterBarangay('ALL');
+                  }}
+                  className="px-2.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Table */}
-          <div id="establishment-directory-table" className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden print:border-none print:shadow-none">
+          {/* Establishments Roster Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                <thead className="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3">Establishment / Owner</th>
-                    <th className="px-4 py-3">Category & Barangay</th>
-                    <th className="px-4 py-3">DOT Accreditation</th>
-                    <th className="px-4 py-3">Compliance & Safety</th>
-                    <th className="px-3 py-3">Workforce & Capital</th>
-                    <th className="px-3 py-3">Operating Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-4 py-3.5">Establishment / Owner</th>
+                    <th className="px-4 py-3.5">Category & Barangay</th>
+                    <th className="px-4 py-3.5">DOT Accreditation</th>
+                    <th className="px-4 py-3.5">Compliance & Safety</th>
+                    <th className="px-3 py-3.5">Jobs & Capital</th>
+                    <th className="px-3 py-3.5">Business Status</th>
+                    <th className="px-3 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
-                        No tourism establishments found matching the filter criteria.
+                        No tourism establishments match the specified filters.
                       </td>
                     </tr>
                   ) : (
                     filtered.map((est) => (
                       <tr key={est.id} className="hover:bg-slate-50/80 transition-colors">
-                        {/* Name & Owner */}
                         <td className="px-4 py-3.5">
                           <div className="font-bold text-slate-900 text-sm">{est.name}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">Proprietor: {est.owner}</div>
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            Permit: {est.businessPermitNumber}
-                          </div>
+                          <div className="text-xs text-slate-500 mt-0.5">Proprietor: {est.owner}</div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">Permit: {est.businessPermitNumber}</div>
                         </td>
 
-                        {/* Category & Location */}
                         <td className="px-4 py-3.5">
-                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 text-[10px] font-bold">
+                          <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 text-[10px] font-bold">
                             {est.category}
                           </span>
-                          <div className="text-slate-500 mt-1 flex items-center gap-1">
+                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                             <span>Brgy. {est.barangay}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400 truncate max-w-[140px] mt-0.5" title={est.address}>
-                            {est.address}
-                          </div>
                         </td>
 
-                        {/* Accreditation */}
                         <td className="px-4 py-3.5">
                           <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                               est.dotAccreditationStatus === 'Accredited'
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : est.dotAccreditationStatus === 'Expired / For Renewal'
-                                ? 'bg-rose-100 text-rose-800'
-                                : est.dotAccreditationStatus === 'Under Inspection'
-                                ? 'bg-purple-100 text-purple-800'
                                 : est.dotAccreditationStatus === 'Application Pending'
                                 ? 'bg-blue-100 text-blue-800'
-                                : 'bg-slate-100 text-slate-700'
+                                : 'bg-amber-100 text-amber-800'
                             }`}
                           >
                             {est.dotAccreditationStatus}
                           </span>
-                          {est.dotAccreditationNumber ? (
-                            <div className="font-mono text-[10px] text-emerald-800 font-bold mt-1">
-                              {est.dotAccreditationNumber}
-                            </div>
-                          ) : (
-                            <div className="text-[10px] text-slate-400 italic mt-1">No DOT number yet</div>
+                          {est.dotAccreditationNumber && (
+                            <div className="font-mono text-[10px] text-slate-500 mt-1">{est.dotAccreditationNumber}</div>
                           )}
                         </td>
 
-                        {/* Compliance & Safety */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[11px] text-slate-700 flex items-center gap-1.5">
+                          <div className="text-xs text-slate-700 flex items-center gap-1">
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span className="truncate max-w-[150px]" title={est.environmentalCompliance}>
-                              {est.environmentalCompliance}
-                            </span>
+                            <span className="truncate max-w-[160px]">{est.environmentalCompliance}</span>
                           </div>
-                          <div className="text-[11px] text-slate-600 mt-1 flex items-center gap-1.5">
+                          <div className="text-xs text-slate-600 mt-0.5 flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                            <span className="truncate max-w-[150px]" title={est.safetyCompliance}>
-                              {est.safetyCompliance}
-                            </span>
+                            <span className="truncate max-w-[160px]">{est.safetyCompliance}</span>
                           </div>
                         </td>
 
-                        {/* Workforce & Capital */}
                         <td className="px-3 py-3.5">
                           <div className="font-semibold text-slate-800 flex items-center gap-1">
                             <Users className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{est.numberOfEmployees} Staff</span>
+                            <span>{est.numberOfEmployees} Employees</span>
                           </div>
-                          <div className="text-[11px] text-slate-600 mt-1">
-                            Cap: ₱{(est.investmentCost / 1000).toFixed(0)}k
-                          </div>
-                          <div className="text-[10px] text-slate-400">
-                            Rev: ₱{(est.annualRevenue / 1000).toFixed(0)}k/yr
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            Capital: ₱{(est.investmentCost / 1000).toFixed(0)}k
                           </div>
                         </td>
 
-                        {/* Status */}
                         <td className="px-3 py-3.5">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                            className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold ${
                               est.businessStatus === 'Active & Operating'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-amber-100 text-amber-800'
@@ -680,48 +643,59 @@ export const EstablishmentView: React.FC = () => {
                           >
                             {est.businessStatus}
                           </span>
-                          <div className="text-[10px] text-slate-400 mt-1">
-                            Renewal: {est.renewalSchedule}
-                          </div>
+                          <div className="text-[10px] text-slate-400 mt-1">Renewal: {est.renewalSchedule}</div>
                         </td>
 
-                        {/* Actions */}
-                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <td className="px-3 py-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end space-x-1">
-                            {/* Official Certificate Trigger */}
+                            <button
+                              onClick={() => handleOpenDossier(est)}
+                              className="p-1.5 text-slate-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View Full Profile Dossier"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenInspections(est)}
+                              className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Audit & Inspection History"
+                            >
+                              <ClipboardList className="w-4 h-4" />
+                            </button>
+
                             <button
                               onClick={() => handleOpenCertificate(est)}
-                              className="p-1.5 text-slate-500 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors"
-                              title="Print Official LGU Tourism Certificate"
+                              className="p-1.5 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Print Accreditation Certificate"
                             >
                               <Award className="w-4 h-4" />
                             </button>
 
-                            {/* Inspection Log Trigger */}
                             <button
-                              onClick={() => handleOpenInspectionModal(est)}
-                              className="p-1.5 text-slate-500 hover:text-purple-700 rounded-lg hover:bg-purple-50 transition-colors"
-                              title="Log Joint Inspection Record"
+                              onClick={() => handleOpenQR(est)}
+                              className="p-1.5 text-slate-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                              title="Generate Verification QR Badge"
                             >
-                              <ClipboardCheck className="w-4 h-4" />
+                              <QrCode className="w-4 h-4" />
                             </button>
 
                             {!isReadOnly && (
                               <>
                                 <button
                                   onClick={() => handleOpenForm(est)}
-                                  className="p-1.5 text-slate-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition-colors"
-                                  title="Edit Establishment Profile"
+                                  className="p-1.5 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                                  title="Edit Establishment"
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (window.confirm(`Delete establishment record for ${est.name}?`)) {
+                                    if (window.confirm(`Delete ${est.name}?`)) {
                                       deleteEstablishment(est.id);
                                     }
                                   }}
-                                  className="p-1.5 text-slate-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
+                                  className="p-1.5 text-slate-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
                                   title="Delete Establishment"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -737,142 +711,84 @@ export const EstablishmentView: React.FC = () => {
               </table>
             </div>
 
-            {/* Table Footer */}
-            <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-2">
-              <span className="font-semibold text-slate-700">
-                Displaying {filtered.length} of {establishments.length} registered enterprises
-              </span>
-              <span className="font-mono text-[11px] text-blue-800 font-semibold">
-                Malungon Municipal Tourism Code • Ordinance No. 2024-08
-              </span>
+            <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+              <span>Showing {filtered.length} of {establishments.length} tourism enterprises</span>
+              <span className="font-mono text-[11px]">DOT Regional Office Registry Sync Ready</span>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 2: ACCREDITATION & COMPLIANCE MATRIX                                  */}
-      {/* ========================================================================= */}
+      {/* SUB-TAB 2: DOT ACCREDITATION & COMPLIANCE TRACKER */}
       {activeTab === 'compliance' && (
-        <div className="space-y-6">
-          {/* Statutory Requirements Overview */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1">
-              <ClipboardCheck className="w-4 h-4 text-emerald-700" />
-              Statutory LGU & National Accreditation Compliance Checklist
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              All tourism enterprises operating in Malungon must maintain active clearance across all 6 statutory pillars:
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">1. Mayor's Permit</span>
-                <span className="text-[11px] text-emerald-700">BPLO Malungon</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">2. DOT Accreditation</span>
-                <span className="text-[11px] text-emerald-700">RA 9593 National</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">3. Fire Safety (FSIC)</span>
-                <span className="text-[11px] text-emerald-700">BFP Station</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">4. Sanitary Permit</span>
-                <span className="text-[11px] text-emerald-700">MHO Health Office</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">5. Environmental ECC</span>
-                <span className="text-[11px] text-emerald-700">DENR / MENRO</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
-                <span className="font-bold block">6. Public Liability</span>
-                <span className="text-[11px] text-emerald-700">Insurance Policy</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Compliance Status Roster */}
-          <div id="enterprise-compliance-audit-grid" className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden print:border-none print:shadow-none">
-            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-              <div>
-                <h4 className="font-bold text-slate-900 text-sm">Enterprise Compliance Audit Grid</h4>
-                <p className="text-xs text-slate-500">Live operational compliance status per establishment</p>
-              </div>
-              <button
-                onClick={() => {
-                  printElement('enterprise-compliance-audit-grid', {
-                    title: 'Official_Enterprise_Compliance_Audit_Malungon',
-                    landscape: true,
-                  });
-                }}
-                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
-              >
-                <Printer className="w-3.5 h-3.5 text-slate-500" />
-                <span>Print Compliance Audit</span>
-              </button>
+        <div className="space-y-4 animate-in fade-in">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="mb-4">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                <span>DOT Accreditation & Environmental Compliance Status</span>
+              </h3>
+              <p className="text-xs text-slate-500">
+                Compliance monitoring per Republic Act 9593 (Tourism Act of 2009) and municipal environmental ordinances
+              </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                <div className="text-xs font-bold text-emerald-900 uppercase">Accredited Enterprises</div>
+                <div className="text-2xl font-black text-emerald-950 mt-1">{accreditedCount} of {totalCount}</div>
+                <div className="text-xs text-emerald-700 mt-1">{accreditationRate}% compliance rate</div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                <div className="text-xs font-bold text-blue-900 uppercase">Environmental ECC/CNC Issued</div>
+                <div className="text-2xl font-black text-blue-950 mt-1">
+                  {establishments.filter((e) => e.environmentalCompliance.includes('Compliant')).length}
+                </div>
+                <div className="text-xs text-blue-700 mt-1">DENR & MENRO Verified</div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="text-xs font-bold text-amber-900 uppercase">Fire Safety Certified</div>
+                <div className="text-2xl font-black text-amber-950 mt-1">
+                  {establishments.filter((e) => e.safetyCompliance.includes('Certified')).length}
+                </div>
+                <div className="text-xs text-amber-700 mt-1">BFP Annual Inspection Pass</div>
+              </div>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                   <tr>
-                    <th className="px-4 py-3">Establishment</th>
-                    <th className="px-3 py-3 text-center">Business Permit</th>
-                    <th className="px-3 py-3 text-center">DOT Status</th>
-                    <th className="px-3 py-3 text-center">Fire Safety</th>
-                    <th className="px-3 py-3 text-center">Environmental</th>
-                    <th className="px-3 py-3 text-center">Liability Ins.</th>
-                    <th className="px-3 py-3 text-center">Next Renewal</th>
-                    <th className="px-4 py-3 text-right">Action</th>
+                    <th className="p-3">Enterprise</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">DOT Status</th>
+                    <th className="p-3">Accreditation Number</th>
+                    <th className="p-3">Environmental ECC</th>
+                    <th className="p-3">Insurance Coverage</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {establishments.map((est) => (
-                    <tr key={est.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        {est.name}
-                        <div className="text-[10px] text-slate-400 font-normal">Brgy. {est.barangay}</div>
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="font-mono text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-bold">
-                          {est.businessPermitNumber}
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {establishments.map((e) => (
+                    <tr key={e.id} className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-slate-900">{e.name}</td>
+                      <td className="p-3">{e.category}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          e.dotAccreditationStatus === 'Accredited' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {e.dotAccreditationStatus}
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            est.dotAccreditationStatus === 'Accredited'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {est.dotAccreditationStatus}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="text-[11px] text-slate-700 font-medium">
-                          {est.safetyCompliance}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="text-[11px] text-slate-700 font-medium">
-                          {est.environmentalCompliance}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <span className="text-[11px] text-slate-700 font-medium">
-                          {est.insuranceCoverage}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 text-center font-mono text-[11px] font-semibold text-slate-800">
-                        {est.renewalSchedule}
-                      </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <td className="p-3 font-mono text-[11px]">{e.dotAccreditationNumber || 'Pending Issuance'}</td>
+                      <td className="p-3">{e.environmentalCompliance}</td>
+                      <td className="p-3">{e.insuranceCoverage}</td>
+                      <td className="p-3 text-right">
                         <button
-                          onClick={() => handleOpenCertificate(est)}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded font-semibold text-xs transition-colors"
+                          onClick={() => handleOpenCertificate(e)}
+                          className="px-2.5 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md font-bold transition-colors"
                         >
                           Certificate
                         </button>
@@ -886,205 +802,171 @@ export const EstablishmentView: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 3: JOINT INSPECTION & AUDIT LOG                                       */}
-      {/* ========================================================================= */}
+      {/* SUB-TAB 3: INSPECTION HISTORY & AUDIT CENTER */}
       {activeTab === 'inspections' && (
-        <div className="space-y-6">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-purple-700" />
-                Joint Municipal Regulatory Inspection Log
+        <div className="space-y-4 animate-in fade-in">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="mb-4">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <ClipboardList className="w-4 h-4 text-emerald-700" />
+                <span>Inspection Records & Regulatory Audit Trail</span>
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Multi-agency audits conducted by Tourism Office, Bureau of Fire Protection (BFP), Municipal Health Office, and MENRO
+              <p className="text-xs text-slate-500">
+                Joint municipal inspection team audit scores, sanitary clearances, and corrective findings
               </p>
             </div>
-            <button
-              onClick={() => handleOpenInspectionModal(establishments[0])}
-              className="px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors self-start sm:self-center"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Log Inspection Audit</span>
-            </button>
-          </div>
 
-          <div className="space-y-4">
-            {establishments.map((est) => (
-              <div key={est.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-900 text-sm">{est.name}</h4>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800">
-                        {est.category}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Proprietor: {est.owner} • Brgy. {est.barangay}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleOpenInspectionModal(est)}
-                    className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded font-semibold text-xs flex items-center gap-1 self-start sm:self-auto transition-colors"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>New Audit</span>
-                  </button>
-                </div>
-
-                {/* Inspection Records List */}
-                <div className="space-y-2">
-                  {!est.inspectionHistory || est.inspectionHistory.length === 0 ? (
-                    <div className="text-xs text-slate-400 italic py-2">
-                      No inspection history recorded yet. Click "New Audit" to log the initial inspection.
-                    </div>
-                  ) : (
-                    est.inspectionHistory.map((ins) => (
-                      <div
-                        key={ins.id}
-                        className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {establishments.map((est) => {
+                const latest = est.inspectionHistory?.[0];
+                return (
+                  <div key={est.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">{est.name}</h4>
+                        <p className="text-xs text-slate-500">{est.category} • Brgy. {est.barangay}</p>
+                      </div>
+                      <button
+                        onClick={() => handleOpenInspections(est)}
+                        className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
                       >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-800">{ins.date}</span>
-                            <span className="text-slate-400">•</span>
-                            <span className="text-slate-600 font-medium">{ins.inspector}</span>
-                          </div>
-                          <p className="text-slate-600 italic">"{ins.findings}"</p>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right">
-                            <div className="font-black text-sm text-slate-900">{ins.rating}/100</div>
-                            <div className="text-[10px] text-slate-400 uppercase font-semibold">Audit Score</div>
-                          </div>
-                          <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                              ins.status === 'Passed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : ins.status === 'Conditional Pass'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-rose-100 text-rose-800'
-                            }`}
-                          >
-                            {ins.status}
+                        Inspect / History ({est.inspectionHistory?.length || 0})
+                      </button>
+                    </div>
+
+                    {latest ? (
+                      <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-800">Latest: {latest.date}</span>
+                          <span className={`px-2 py-0.2 rounded text-[10px] font-bold ${
+                            latest.status === 'Passed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {latest.status} ({latest.rating}/100)
                           </span>
                         </div>
+                        <div className="text-slate-600 italic text-[11px]">"{latest.findings}"</div>
+                        <div className="text-[10px] text-slate-400">Auditor: {latest.inspector}</div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+                    ) : (
+                      <div className="text-xs text-slate-400 italic">No inspection records logged yet.</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB 4: ECONOMIC & LABOR FOOTPRINT                                         */}
-      {/* ========================================================================= */}
-      {activeTab === 'economic' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Employment by Sector */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1">
-                <Users className="w-4 h-4 text-blue-700" />
-                Tourism Workforce Distribution by Sector
+      {/* SUB-TAB 4: PERMIT RENEWAL CALENDAR */}
+      {activeTab === 'renewals' && (
+        <div className="space-y-4 animate-in fade-in">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="mb-4">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                <span>Annual Permit Renewal Schedule & Expiration Tracker</span>
               </h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Direct employment generated by registered resorts, accommodation, and dining establishments
+              <p className="text-xs text-slate-500">
+                Timeline of upcoming municipal business permit and DOT accreditation renewals
               </p>
+            </div>
+
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">Enterprise</th>
+                    <th className="p-3">Category</th>
+                    <th className="p-3">Permit Number</th>
+                    <th className="p-3">Renewal Target Date</th>
+                    <th className="p-3">Validity Window</th>
+                    <th className="p-3">Contact Email / Phone</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {establishments.map((e) => (
+                    <tr key={e.id} className="hover:bg-slate-50">
+                      <td className="p-3 font-bold text-slate-900">{e.name}</td>
+                      <td className="p-3">{e.category}</td>
+                      <td className="p-3 font-mono text-[11px]">{e.businessPermitNumber}</td>
+                      <td className="p-3 font-bold text-indigo-900">{e.renewalSchedule}</td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          Active & Current
+                        </span>
+                      </td>
+                      <td className="p-3 text-slate-600">{e.contactNumber} • {e.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 5: ECONOMIC & EMPLOYMENT ANALYTICS */}
+      {activeTab === 'analytics' && (
+        <div className="space-y-6 animate-in fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Employment by Category */}
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
+              <h3 className="font-extrabold text-slate-900 text-base mb-1 flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-700" />
+                <span>Direct Employment by Tourism Category</span>
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">Total headcount employed across local businesses</p>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={jobsByCategory} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                  <BarChart data={categoryChartData} margin={{ left: -10, right: 10, top: 10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="category" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
-                      formatter={(val: any) => [`${val} staff`, 'Workforce']}
-                    />
-                    <Bar dataKey="jobs" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px' }} />
+                    <Bar dataKey="employees" name="Employees" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Accreditation Breakdown Chart */}
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-1">
-                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  Accreditation Status Breakdown
-                </h3>
-                <p className="text-xs text-slate-500 mb-4">
-                  Percentage distribution of national and municipal standards compliance
-                </p>
+            {/* Accreditation Ratio Donut */}
+            <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
+              <h3 className="font-extrabold text-slate-900 text-base mb-1 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                <span>DOT Accreditation Status Breakdown</span>
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">Accreditation compliance across all 11 categories</p>
 
-                <div className="h-56 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={accreditationShareData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        innerRadius={50}
-                        paddingAngle={4}
-                      >
-                        {accreditationShareData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
-                        formatter={(val: any) => [`${val} establishments`, 'Count']}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="space-y-2 mt-2">
-                  {accreditationShareData.map((d, i) => (
-                    <div key={i} className="flex items-center justify-between text-xs text-slate-600">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }}></span>
-                        <span>{d.name}</span>
-                      </span>
-                      <span className="font-bold text-slate-900">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500">
-                All accommodation and ecoparks are required to complete full DOT accreditation prior to 2027 business permit renewal.
+              <div className="h-64 w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={accreditationChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={75} innerRadius={48}>
+                      {accreditationChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '11px' }} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* ADD / EDIT ESTABLISHMENT MODAL                                            */}
-      {/* ========================================================================= */}
+      {/* MODAL 1: Add / Edit Establishment Form */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-            {/* Modal Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
             <div className="bg-blue-800 text-white px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-base">
-                  {editingId ? 'Edit Tourism Establishment Record' : 'Register Tourism Enterprise'}
+                  {editingId ? 'Edit Tourism Establishment Record' : 'Register New Tourism Enterprise'}
                 </h3>
-                <p className="text-xs text-blue-200">
-                  Municipality of Malungon Tourism Regulatory Registry (DOT Form Compatible)
-                </p>
+                <p className="text-xs text-blue-200">Comprehensive LGU Regulatory Registry • DOT Standards</p>
               </div>
               <button
                 onClick={() => setIsFormOpen(false)}
@@ -1094,73 +976,123 @@ export const EstablishmentView: React.FC = () => {
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Section 1: Identity */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Business Name</label>
+                  <label className="block font-bold text-slate-700 mb-1">Establishment / Business Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Kalon Barak Highland Resort"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Proprietor / Managing Entity</label>
+                  <label className="block font-bold text-slate-700 mb-1">Business Owner / Managing Entity</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Juanita D. Santos"
+                    placeholder="e.g. Juan Dela Cruz / Highland Hospitality Corp"
                     value={formData.owner}
                     onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   />
                 </div>
               </div>
 
-              {/* Section 2: Category & Location */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                  <label className="block font-bold text-slate-700 mb-1">Tourism Category</label>
                   <select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value as EstablishmentCategory })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-medium"
                   >
-                    <option value="Resorts">Resorts</option>
-                    <option value="Hotels">Hotels</option>
-                    <option value="Homestays">Homestays</option>
-                    <option value="Restaurants">Restaurants</option>
-                    <option value="Cafés">Cafés</option>
-                    <option value="Souvenir Shops">Souvenir Shops</option>
-                    <option value="Adventure Sites">Adventure Sites</option>
-                    <option value="Eco Parks">Eco Parks</option>
-                    <option value="Campsites">Campsites</option>
-                    <option value="Farm Tourism">Farm Tourism</option>
-                    <option value="Event Venues">Event Venues</option>
+                    {ALL_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Barangay</label>
+                  <label className="block font-bold text-slate-700 mb-1">Barangay</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Poblacion"
                     value={formData.barangay}
                     onChange={(e) => setFormData({ ...formData, barangay: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">DOT Accreditation</label>
+                  <label className="block font-bold text-slate-700 mb-1">Business Status</label>
+                  <select
+                    value={formData.businessStatus}
+                    onChange={(e) => setFormData({ ...formData, businessStatus: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-medium"
+                  >
+                    <option value="Active & Operating">Active & Operating</option>
+                    <option value="Temporary Closed">Temporary Closed</option>
+                    <option value="Under Renovation">Under Renovation</option>
+                    <option value="Suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Complete Address</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Purok 4, Upper Mainit, Malungon, Sarangani"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Contact Phone & Email</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="+63 9XX XXX XXXX"
+                      value={formData.contactNumber}
+                      onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
+                    />
+                    <input
+                      type="email"
+                      placeholder="info@business.ph"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Business Permit Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.businessPermitNumber}
+                    onChange={(e) => setFormData({ ...formData, businessPermitNumber: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">DOT Accreditation Status</label>
                   <select
                     value={formData.dotAccreditationStatus}
                     onChange={(e) => setFormData({ ...formData, dotAccreditationStatus: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-medium"
                   >
                     <option value="Accredited">Accredited</option>
                     <option value="Application Pending">Application Pending</option>
@@ -1169,96 +1101,60 @@ export const EstablishmentView: React.FC = () => {
                     <option value="Not Accredited">Not Accredited</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">DOT Accreditation Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. DOT-R12-ACC-2026-081"
+                    value={formData.dotAccreditationNumber}
+                    onChange={(e) => setFormData({ ...formData, dotAccreditationNumber: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-mono"
+                  />
+                </div>
               </div>
 
-              {/* Section 3: Contact & Address */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Specific Address / Sitio</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sitio Upper Biangan"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Hotline</label>
-                  <input
-                    type="text"
-                    placeholder="+63 9XX XXX XXXX"
-                    value={formData.contactNumber}
-                    onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="contact@enterprise.ph"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              {/* Section 4: Permits & Economic Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Business Permit No.</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.businessPermitNumber}
-                    onChange={(e) => setFormData({ ...formData, businessPermitNumber: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">DOT Acc. No.</label>
-                  <input
-                    type="text"
-                    placeholder="DOT-R12-ACC-XXXX"
-                    value={formData.dotAccreditationNumber || ''}
-                    onChange={(e) => setFormData({ ...formData, dotAccreditationNumber: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Staff Count</label>
+                  <label className="block font-bold text-slate-700 mb-1">Number of Employees</label>
                   <input
                     type="number"
                     min={1}
                     value={formData.numberOfEmployees}
                     onChange={(e) => setFormData({ ...formData, numberOfEmployees: parseInt(e.target.value) || 1 })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Declared Capital (PHP)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Investment Cost (PHP ₱)</label>
                   <input
                     type="number"
                     min={0}
-                    step={10000}
+                    step={50000}
                     value={formData.investmentCost}
                     onChange={(e) => setFormData({ ...formData, investmentCost: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Annual Revenue (PHP ₱)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={50000}
+                    value={formData.annualRevenue}
+                    onChange={(e) => setFormData({ ...formData, annualRevenue: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800 font-bold"
                   />
                 </div>
               </div>
 
-              {/* Section 5: Compliance Declarations */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Environmental Status</label>
+                  <label className="block font-bold text-slate-700 mb-1">Environmental Compliance</label>
                   <select
                     value={formData.environmentalCompliance}
                     onChange={(e) => setFormData({ ...formData, environmentalCompliance: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   >
                     <option value="Compliant (ECC/CNC Issued)">Compliant (ECC/CNC Issued)</option>
                     <option value="Pending Verification">Pending Verification</option>
@@ -1266,11 +1162,11 @@ export const EstablishmentView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Fire Safety Status</label>
+                  <label className="block font-bold text-slate-700 mb-1">Safety Compliance</label>
                   <select
                     value={formData.safetyCompliance}
                     onChange={(e) => setFormData({ ...formData, safetyCompliance: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   >
                     <option value="Fire & Safety Certified">Fire & Safety Certified</option>
                     <option value="Pending Inspection">Pending Inspection</option>
@@ -1278,11 +1174,11 @@ export const EstablishmentView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Liability Insurance</label>
+                  <label className="block font-bold text-slate-700 mb-1">Insurance Coverage</label>
                   <select
                     value={formData.insuranceCoverage}
                     onChange={(e) => setFormData({ ...formData, insuranceCoverage: e.target.value as any })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
                   >
                     <option value="Comprehensive Public Liability">Comprehensive Public Liability</option>
                     <option value="Basic">Basic</option>
@@ -1291,19 +1187,42 @@ export const EstablishmentView: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Renewal Schedule Target</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.renewalSchedule}
+                    onChange={(e) => setFormData({ ...formData, renewalSchedule: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Photo Reference URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://images.unsplash.com/..."
+                    value={formData.photoUrl}
+                    onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-800"
+                  />
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-2 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                  className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-bold shadow-xs transition-colors"
                 >
-                  {editingId ? 'Save Enterprise Updates' : 'Confirm Registration'}
+                  {editingId ? 'Save Changes' : 'Confirm Registration'}
                 </button>
               </div>
             </form>
@@ -1311,220 +1230,275 @@ export const EstablishmentView: React.FC = () => {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* LOG JOINT INSPECTION AUDIT MODAL                                          */}
-      {/* ========================================================================= */}
-      {inspectionModalOpen && inspectingEst && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full flex flex-col overflow-hidden border border-slate-200">
-            <div className="bg-purple-800 text-white px-5 py-3.5 flex items-center justify-between">
+      {/* MODAL 2: Inspection Audit Center & History Logger */}
+      {inspectModalOpen && selectedEst && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="bg-emerald-800 text-white px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-sm">Log Joint Inspection Audit</h3>
-                <p className="text-[11px] text-purple-200">{inspectingEst.name}</p>
+                <h3 className="font-bold text-base">Inspection History & Safety Audit</h3>
+                <p className="text-xs text-emerald-200">{selectedEst.name} • Permit: {selectedEst.businessPermitNumber}</p>
               </div>
-              <button
-                onClick={() => setInspectionModalOpen(false)}
-                className="text-purple-200 hover:text-white p-1 rounded transition-colors"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setInspectModalOpen(false)} className="text-emerald-200 hover:text-white p-1">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveInspection} className="p-5 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Inspection Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={newInspection.date}
-                    onChange={(e) => setNewInspection({ ...newInspection, date: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Rating Score (0-100)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    required
-                    value={newInspection.rating}
-                    onChange={(e) => setNewInspection({ ...newInspection, rating: parseInt(e.target.value) || 0 })}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
-                  />
-                </div>
-              </div>
+            <div className="p-6 overflow-y-auto space-y-5 text-xs">
+              {/* Log New Inspection Form */}
+              {!isReadOnly && (
+                <form onSubmit={handleRecordInspection} className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
+                  <div className="font-bold text-emerald-950 flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Record New On-Site Inspection</span>
+                  </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Inspection Team / Lead Auditor</label>
-                <input
-                  type="text"
-                  required
-                  value={newInspection.inspector}
-                  onChange={(e) => setNewInspection({ ...newInspection, inspector: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
-                />
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Audit Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={newInspection.date}
+                        onChange={(e) => setNewInspection({ ...newInspection, date: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Inspector Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={newInspection.inspector}
+                        onChange={(e) => setNewInspection({ ...newInspection, inspector: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Score Rating (0-100)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        required
+                        value={newInspection.rating}
+                        onChange={(e) => setNewInspection({ ...newInspection, rating: parseInt(e.target.value) || 0 })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Audit Outcome Status</label>
-                <select
-                  value={newInspection.status}
-                  onChange={(e) => setNewInspection({ ...newInspection, status: e.target.value as any })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
-                >
-                  <option value="Passed">Passed (Accreditation Approved)</option>
-                  <option value="Conditional Pass">Conditional Pass (15-Day Remediation)</option>
-                  <option value="Failed / Action Needed">Failed / Notice of Violation Issued</option>
-                </select>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Findings & Observations</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Sanitary conditions, fire exits, emergency signage..."
+                        value={newInspection.findings}
+                        onChange={(e) => setNewInspection({ ...newInspection, findings: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-0.5">Audit Status</label>
+                      <select
+                        value={newInspection.status}
+                        onChange={(e) => setNewInspection({ ...newInspection, status: e.target.value as any })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold"
+                      >
+                        <option value="Passed">Passed</option>
+                        <option value="Conditional Pass">Conditional Pass</option>
+                        <option value="Failed / Action Needed">Failed / Action Needed</option>
+                      </select>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Inspection Findings & Recommendations</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={newInspection.findings}
-                  onChange={(e) => setNewInspection({ ...newInspection, findings: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800"
-                  placeholder="Details regarding fire extinguishers, sanitary permit, garbage disposal, first aid..."
-                />
-              </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold shadow-xs transition-colors"
+                    >
+                      Save Inspection Audit
+                    </button>
+                  </div>
+                </form>
+              )}
 
-              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setInspectionModalOpen(false)}
-                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-semibold rounded-lg shadow-xs"
-                >
-                  Save Inspection Audit
-                </button>
+              {/* Historical Logs List */}
+              <div className="space-y-2">
+                <div className="font-bold text-slate-800 text-xs uppercase tracking-wider">Audit Log History</div>
+                {selectedEst.inspectionHistory && selectedEst.inspectionHistory.length > 0 ? (
+                  selectedEst.inspectionHistory.map((rec) => (
+                    <div key={rec.id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900">{rec.date} • {rec.inspector}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          rec.status === 'Passed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {rec.status} ({rec.rating}/100)
+                        </span>
+                      </div>
+                      <p className="text-slate-600 italic">"{rec.findings}"</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-slate-400 italic">No historical inspection records on file.</div>
+                )}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* OFFICIAL PRINTABLE LGU TOURISM CERTIFICATE MODAL                          */}
-      {/* ========================================================================= */}
-      {certModalOpen && certifiedEst && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden border border-slate-200">
-            {/* Modal Actions Header */}
-            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Award className="w-4 h-4 text-emerald-400" />
-                <span className="font-bold text-xs uppercase tracking-wider">
-                  Official LGU Certificate of Tourism Accreditation
-                </span>
+      {/* MODAL 3: Enterprise Full Dossier View */}
+      {dossierModalOpen && selectedEst && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Building2 className="w-5 h-5 text-blue-400" />
+                <div>
+                  <h3 className="font-bold text-base">{selectedEst.name}</h3>
+                  <p className="text-xs text-slate-400">{selectedEst.category} • Brgy. {selectedEst.barangay}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <button onClick={() => setDossierModalOpen(false)} className="text-slate-400 hover:text-white p-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-mono">DOT Status</div>
+                  <div className="font-bold text-emerald-800 text-sm mt-0.5">{selectedEst.dotAccreditationStatus}</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-mono">Employees</div>
+                  <div className="font-bold text-slate-900 text-sm mt-0.5">{selectedEst.numberOfEmployees} Staff</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-mono">Capital Investment</div>
+                  <div className="font-bold text-slate-900 text-sm mt-0.5">₱{selectedEst.investmentCost.toLocaleString()}</div>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="text-slate-400 text-[10px] uppercase font-mono">Annual Revenue</div>
+                  <div className="font-bold text-emerald-800 text-sm mt-0.5">₱{selectedEst.annualRevenue.toLocaleString()}</div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div><strong>Business Proprietor:</strong> {selectedEst.owner}</div>
+                <div><strong>Complete Address:</strong> {selectedEst.address} (Brgy. {selectedEst.barangay})</div>
+                <div><strong>Permit Details:</strong> Business Permit No. {selectedEst.businessPermitNumber} • DOT No. {selectedEst.dotAccreditationNumber || 'N/A'}</div>
+                <div><strong>Contact:</strong> {selectedEst.contactNumber} • {selectedEst.email}</div>
+                <div><strong>Environmental ECC/CNC:</strong> {selectedEst.environmentalCompliance}</div>
+                <div><strong>Fire & Safety Certification:</strong> {selectedEst.safetyCompliance}</div>
+                <div><strong>Insurance:</strong> {selectedEst.insuranceCoverage}</div>
+                <div><strong>Next Renewal Schedule:</strong> {selectedEst.renewalSchedule}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Printable Enterprise Accreditation Certificate */}
+      {certificateModalOpen && selectedEst && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-xs font-bold">
+                <Award className="w-4 h-4 text-amber-400" />
+                <span>Print Official Tourism Enterprise Clearance Certificate</span>
+              </div>
+              <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => {
-                    printElement('printable-accreditation-certificate', {
-                      title: `Official_Accreditation_Certificate_${certifiedEst.name.replace(/\s+/g, '_')}`,
-                    });
-                  }}
-                  className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded flex items-center gap-1 transition-colors"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
                 >
-                  <Printer className="w-3.5 h-3.5" />
+                  <Printer className="w-3 h-3" />
                   <span>Print Certificate</span>
                 </button>
-                <button
-                  onClick={() => setCertModalOpen(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded transition-colors"
-                >
+                <button onClick={() => setCertificateModalOpen(false)} className="p-1 text-slate-400 hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Printable Certificate Body */}
-            <div id="printable-accreditation-certificate" className="p-8 bg-white space-y-6 text-slate-900 font-sans border-8 border-emerald-950/10 m-2 rounded-xl">
-              {/* Header Letterhead */}
-              <div className="text-center space-y-1 border-b-2 border-emerald-800 pb-4">
-                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  Republic of the Philippines • Province of Sarangani
+            <div className="p-8 text-center space-y-4 text-slate-800 text-xs">
+              <div className="pb-4 border-b-2 border-slate-800">
+                <div className="flex items-center justify-center gap-4 mb-3">
+                  <img src="/logo/LGU_LOGO1.png" alt="LGU Malungon Seal" className="w-14 h-14 object-contain drop-shadow" />
+                  <img src="/logo/TourismLogo.png" alt="Tourism Office Logo" className="w-14 h-14 object-contain drop-shadow" />
                 </div>
-                <h2 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                  Municipality of Malungon
-                </h2>
-                <div className="text-xs font-bold text-emerald-900 tracking-wide uppercase">
-                  Municipal Tourism Office • Regulatory & Standards Section
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Republic of the Philippines</div>
+                <div className="text-xs font-bold text-slate-700 uppercase">{municipalityInfo.province}</div>
+                <div className="text-lg font-black text-slate-900 uppercase tracking-tight">{municipalityInfo.name}</div>
+                <div className="text-xs font-bold text-blue-900 uppercase mt-0.5">{municipalityInfo.officeName}</div>
+              </div>
+
+              <div className="py-2">
+                <div className="text-sm font-extrabold text-slate-900 uppercase tracking-widest">
+                  CERTIFICATE OF MUNICIPAL TOURISM ACCREDITATION CLEARANCE
+                </div>
+                <div className="text-[11px] text-slate-500 mt-1">This is to certify that</div>
+                <div className="text-xl font-black text-blue-950 uppercase tracking-wide my-2">{selectedEst.name}</div>
+                <div className="text-xs text-slate-700">
+                  located at <strong>{selectedEst.address}</strong>, Barangay <strong>{selectedEst.barangay}</strong>, operated by{' '}
+                  <strong>{selectedEst.owner}</strong>, has satisfactorily satisfied the municipal tourism standards, sanitary, safety, and environmental criteria.
                 </div>
               </div>
 
-              {/* Certificate Title */}
-              <div className="text-center space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                  Republic Act No. 9593 & Municipal Ordinance No. 2024-08
-                </span>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-2 font-serif">
-                  CERTIFICATE OF TOURISM ACCREDITATION
-                </h1>
-                <p className="text-xs text-slate-500">This is to officially certify that</p>
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-2 text-left text-xs gap-2">
+                <div><strong>Category:</strong> {selectedEst.category}</div>
+                <div><strong>Business Permit:</strong> {selectedEst.businessPermitNumber}</div>
+                <div><strong>DOT Status:</strong> {selectedEst.dotAccreditationStatus}</div>
+                <div><strong>Validity:</strong> Fiscal Year 2026 (Exp: {selectedEst.renewalSchedule})</div>
               </div>
 
-              {/* Enterprise Name Callout */}
-              <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="text-xl font-black text-slate-900">{certifiedEst.name}</div>
-                <div className="text-xs font-medium text-slate-600 mt-0.5">
-                  Operated by: <strong>{certifiedEst.owner}</strong> • Barangay {certifiedEst.barangay}
-                </div>
-                <div className="text-[11px] text-emerald-800 font-bold mt-1">
-                  Category: {certifiedEst.category} • Permit: {certifiedEst.businessPermitNumber}
-                </div>
-              </div>
-
-              {/* Attestation Text */}
-              <p className="text-xs text-slate-700 leading-relaxed text-justify">
-                Has successfully complied with the rigorous standards, environmental sanitation protocols, fire safety mandates, and quality benchmarks prescribed by the <strong>Department of Tourism (DOT)</strong> and the <strong>Local Government Unit of Malungon</strong>. The establishment is hereby officially recognized as an accredited tourism facility authorized to offer public tourist services.
-              </p>
-
-              {/* Certificate Metadata Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 bg-emerald-50/70 rounded-lg border border-emerald-200 text-xs">
+              <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-center text-xs">
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-semibold">Accreditation No.</span>
-                  <div className="font-mono font-bold text-emerald-900 mt-0.5">
-                    {certifiedEst.dotAccreditationNumber || 'MLG-LGU-2026-ACC'}
+                  <div className="font-bold border-b border-slate-400 pb-1 max-w-xs mx-auto">
+                    {municipalityInfo.officerInCharge}
                   </div>
+                  <div className="text-[11px] text-slate-600 mt-1">{municipalityInfo.officerPosition}</div>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-semibold">Date of Issuance</span>
-                  <div className="font-bold text-slate-800 mt-0.5">{certifiedEst.renewalSchedule}</div>
-                </div>
-                <div>
-                  <span className="text-slate-500 text-[10px] uppercase font-semibold">Validity Status</span>
-                  <div className="font-bold text-emerald-700 mt-0.5">Full 1-Year Accreditation</div>
-                </div>
-              </div>
-
-              {/* Signatures */}
-              <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-xs">
-                <div>
-                  <div className="text-[10px] text-slate-400">Inspected and Endorsed:</div>
-                  <div className="font-bold text-slate-900 mt-4">{municipalityInfo.officerInCharge}</div>
-                  <div className="text-[10px] text-slate-600 font-medium">{municipalityInfo.officerPosition}</div>
-                  <div className="text-[9px] text-slate-400">{municipalityInfo.officerDepartment}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-400">Approved by Authority:</div>
-                  <div className="font-bold text-slate-900 mt-4">{municipalityInfo.mayorName}</div>
-                  <div className="text-[10px] text-slate-600 font-medium">{municipalityInfo.mayorTitle}</div>
-                  <div className="text-[9px] text-slate-400">{municipalityInfo.mayorOffice}</div>
+                  <div className="font-bold border-b border-slate-400 pb-1 max-w-xs mx-auto">
+                    {municipalityInfo.mayorName}
+                  </div>
+                  <div className="text-[11px] text-slate-600 mt-1">{municipalityInfo.mayorTitle}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL 5: Fixed QR Code Accreditation Pass Modal */}
+      {selectedEst && (
+        <QRCodeModal
+          isOpen={qrModalOpen}
+          onClose={() => {
+            setQrModalOpen(false);
+            setSelectedEst(null);
+          }}
+          title={selectedEst.name}
+          subtitle={`Permit: ${selectedEst.businessPermitNumber} • ${selectedEst.dotAccreditationStatus}`}
+          codeData={`MTODMS-ENTERPRISE-PASS-${selectedEst.id}-${selectedEst.businessPermitNumber}`}
+          entityType="establishment"
+          extraDetails={[
+            { label: 'Establishment', value: selectedEst.name },
+            { label: 'Proprietor', value: selectedEst.owner },
+            { label: 'Category', value: selectedEst.category },
+            { label: 'Barangay', value: `Brgy. ${selectedEst.barangay}` },
+            { label: 'Business Permit', value: selectedEst.businessPermitNumber },
+            { label: 'DOT Status', value: selectedEst.dotAccreditationStatus },
+            { label: 'Accreditation No.', value: selectedEst.dotAccreditationNumber || 'Pending' },
+            { label: 'Validity Schedule', value: selectedEst.renewalSchedule },
+          ]}
+        />
       )}
     </div>
   );

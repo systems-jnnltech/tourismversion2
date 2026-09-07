@@ -15,13 +15,21 @@ import {
   TourismPolicy,
   NoticeOfViolation,
   TouristComplaint,
-  TouristFeedback,
   TourismProduct,
+  CapacityBuildingTraining,
+  TourismInvestmentOpportunity,
   MarketingCampaign,
+  MarketingCollateralItem,
+  MarketingPartner,
   SocialMediaPlatformStat,
   ScheduledPost,
+  TopSocialPost,
+  SocialCampaignMetric,
   VisitorAssistanceLog,
   LostAndFoundItem,
+  EmergencyCaseLog,
+  TouristFeedbackEntry,
+  FAQItem,
   OfficialDocument,
   AuditLogEntry,
 } from '../types';
@@ -41,13 +49,21 @@ import {
   INITIAL_POLICIES,
   INITIAL_NOTICES,
   INITIAL_COMPLAINTS,
-  INITIAL_FEEDBACKS,
   INITIAL_PRODUCTS,
+  INITIAL_CAPACITY_TRAININGS,
+  INITIAL_INVESTMENT_OPPORTUNITIES,
   INITIAL_CAMPAIGNS,
+  INITIAL_COLLATERALS,
+  INITIAL_MARKETING_PARTNERS,
   INITIAL_SOCIAL_METRICS,
   INITIAL_SCHEDULED_POSTS,
+  INITIAL_TOP_POSTS,
+  INITIAL_SOCIAL_CAMPAIGNS,
   INITIAL_TIAC_LOGS,
   INITIAL_LOST_AND_FOUND,
+  INITIAL_EMERGENCY_LOGS,
+  INITIAL_TOURIST_FEEDBACK,
+  INITIAL_FAQS,
   INITIAL_DOCUMENTS,
   INITIAL_AUDIT_LOGS,
 } from '../data/seedData';
@@ -78,7 +94,6 @@ interface TourismContextType {
 
   // Global Municipality Info
   municipalityInfo: typeof MUNICIPALITY_INFO;
-  updateMunicipalityInfo: (info: Partial<typeof MUNICIPALITY_INFO>) => void;
 
   // Collections & CRUD
   tourists: TouristArrival[];
@@ -123,49 +138,98 @@ interface TourismContextType {
   // Research & Policies
   research: TourismResearch[];
   addResearch: (res: Omit<TourismResearch, 'id'>) => void;
+  updateResearch: (id: string, updated: Partial<TourismResearch>) => void;
+  deleteResearch: (id: string) => void;
 
   policies: TourismPolicy[];
   addPolicy: (pol: Omit<TourismPolicy, 'id'>) => void;
+  updatePolicy: (id: string, updated: Partial<TourismPolicy>) => void;
+  deletePolicy: (id: string) => void;
 
   notices: NoticeOfViolation[];
   addNotice: (not: Omit<NoticeOfViolation, 'id'>) => void;
+  updateNotice: (id: string, updated: Partial<NoticeOfViolation>) => void;
+  deleteNotice: (id: string) => void;
   resolveNotice: (id: string) => void;
 
   complaints: TouristComplaint[];
   addComplaint: (comp: Omit<TouristComplaint, 'id'>) => void;
   updateComplaintStatus: (id: string, status: TouristComplaint['status'], resolutionNotes?: string) => void;
-  updateComplaint: (id: string, updated: Partial<TouristComplaint>) => void;
+  updateComplaint: (id: string, data: Partial<TouristComplaint>) => void;
   deleteComplaint: (id: string) => void;
 
-  // Feedback & Satisfaction (TFRGS)
-  feedbacks: TouristFeedback[];
-  addFeedback: (fb: Omit<TouristFeedback, 'id'>) => void;
-  updateFeedbackStatus: (id: string, status: TouristFeedback['status']) => void;
-  deleteFeedback: (id: string) => void;
+  feedbacks: TouristFeedbackEntry[];
+  addFeedback: (feedback: Omit<TouristFeedbackEntry, 'id'>) => void;
+  updateFeedbackStatus: (id: string, status: string) => void;
 
   // Product Dev
   products: TourismProduct[];
   addProduct: (prod: Omit<TourismProduct, 'id'>) => void;
+  updateProduct: (id: string, data: Partial<TourismProduct>) => void;
+  deleteProduct: (id: string) => void;
+  capacityTrainings: CapacityBuildingTraining[];
+  addCapacityTraining: (training: Omit<CapacityBuildingTraining, 'id'>) => void;
+  updateCapacityTraining: (id: string, data: Partial<CapacityBuildingTraining>) => void;
+  deleteCapacityTraining: (id: string) => void;
+  investmentOpportunities: TourismInvestmentOpportunity[];
+  addInvestmentOpportunity: (opp: Omit<TourismInvestmentOpportunity, 'id'>) => void;
+  updateInvestmentOpportunity: (id: string, data: Partial<TourismInvestmentOpportunity>) => void;
+  deleteInvestmentOpportunity: (id: string) => void;
 
   // Marketing & Social
   campaigns: MarketingCampaign[];
   addCampaign: (camp: Omit<MarketingCampaign, 'id'>) => void;
+  updateCampaign: (id: string, data: Partial<MarketingCampaign>) => void;
+  deleteCampaign: (id: string) => void;
+  marketingCollaterals: MarketingCollateralItem[];
+  addCollateral: (item: Omit<MarketingCollateralItem, 'id'>) => void;
+  updateCollateral: (id: string, data: Partial<MarketingCollateralItem>) => void;
+  deleteCollateral: (id: string) => void;
+  marketingPartners: MarketingPartner[];
+  addPartner: (partner: Omit<MarketingPartner, 'id'>) => void;
+  updatePartner: (id: string, data: Partial<MarketingPartner>) => void;
+  deletePartner: (id: string) => void;
 
   socialMetrics: SocialMediaPlatformStat[];
+  updatePlatformStat: (platform: string, data: Partial<SocialMediaPlatformStat>) => void;
+  topPosts: TopSocialPost[];
+  addTopPost: (post: Omit<TopSocialPost, 'id'>) => void;
+  deleteTopPost: (id: string) => void;
   scheduledPosts: ScheduledPost[];
   addScheduledPost: (post: Omit<ScheduledPost, 'id'>) => void;
+  updateScheduledPost: (id: string, data: Partial<ScheduledPost>) => void;
+  deleteScheduledPost: (id: string) => void;
+  publishScheduledPost: (id: string) => void;
+  socialCampaigns: SocialCampaignMetric[];
+  addSocialCampaign: (camp: Omit<SocialCampaignMetric, 'id'>) => void;
+  deleteSocialCampaign: (id: string) => void;
 
   // TIAC
   tiacLogs: VisitorAssistanceLog[];
   addTiacLog: (log: Omit<VisitorAssistanceLog, 'id'>) => void;
+  updateTiacLog: (id: string, data: Partial<VisitorAssistanceLog>) => void;
+  deleteTiacLog: (id: string) => void;
 
   lostAndFound: LostAndFoundItem[];
   addLostItem: (item: Omit<LostAndFoundItem, 'id'>) => void;
   claimLostItem: (id: string, claimantName: string) => void;
+  deleteLostItem: (id: string) => void;
+
+  emergencyLogs: EmergencyCaseLog[];
+  addEmergencyLog: (log: Omit<EmergencyCaseLog, 'id'>) => void;
+  updateEmergencyLog: (id: string, data: Partial<EmergencyCaseLog>) => void;
+
+  touristFeedback: TouristFeedbackEntry[];
+  addTouristFeedback: (feedback: Omit<TouristFeedbackEntry, 'id'>) => void;
+
+  faqs: FAQItem[];
+  addFAQ: (faq: Omit<FAQItem, 'id'>) => void;
 
   // Documents
   documents: OfficialDocument[];
   addDocument: (doc: Omit<OfficialDocument, 'id'>) => void;
+  updateDocument: (id: string, data: Partial<OfficialDocument>) => void;
+  deleteDocument: (id: string) => void;
 
   // Audit trail
   auditLogs: AuditLogEntry[];
@@ -250,14 +314,19 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return saved ? JSON.parse(saved) : INITIAL_COMPLAINTS;
   });
 
-  const [feedbacks, setFeedbacks] = useState<TouristFeedback[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_feedbacks`);
-    return saved ? JSON.parse(saved) : INITIAL_FEEDBACKS;
-  });
-
   const [products, setProducts] = useState<TourismProduct[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_products`);
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+
+  const [capacityTrainings, setCapacityTrainings] = useState<CapacityBuildingTraining[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_capacity_trainings`);
+    return saved ? JSON.parse(saved) : INITIAL_CAPACITY_TRAININGS;
+  });
+
+  const [investmentOpportunities, setInvestmentOpportunities] = useState<TourismInvestmentOpportunity[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_investment_opps`);
+    return saved ? JSON.parse(saved) : INITIAL_INVESTMENT_OPPORTUNITIES;
   });
 
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(() => {
@@ -265,11 +334,34 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return saved ? JSON.parse(saved) : INITIAL_CAMPAIGNS;
   });
 
-  const [socialMetrics] = useState<SocialMediaPlatformStat[]>(INITIAL_SOCIAL_METRICS);
+  const [marketingCollaterals, setMarketingCollaterals] = useState<MarketingCollateralItem[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_marketing_collaterals`);
+    return saved ? JSON.parse(saved) : INITIAL_COLLATERALS;
+  });
+
+  const [marketingPartners, setMarketingPartners] = useState<MarketingPartner[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_marketing_partners`);
+    return saved ? JSON.parse(saved) : INITIAL_MARKETING_PARTNERS;
+  });
+
+  const [socialMetrics, setSocialMetrics] = useState<SocialMediaPlatformStat[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_social_metrics`);
+    return saved ? JSON.parse(saved) : INITIAL_SOCIAL_METRICS;
+  });
+
+  const [topPosts, setTopPosts] = useState<TopSocialPost[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_top_posts`);
+    return saved ? JSON.parse(saved) : INITIAL_TOP_POSTS;
+  });
 
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_scheduled_posts`);
     return saved ? JSON.parse(saved) : INITIAL_SCHEDULED_POSTS;
+  });
+
+  const [socialCampaigns, setSocialCampaigns] = useState<SocialCampaignMetric[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_social_campaigns`);
+    return saved ? JSON.parse(saved) : INITIAL_SOCIAL_CAMPAIGNS;
   });
 
   const [tiacLogs, setTiacLogs] = useState<VisitorAssistanceLog[]>(() => {
@@ -282,6 +374,21 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return saved ? JSON.parse(saved) : INITIAL_LOST_AND_FOUND;
   });
 
+  const [emergencyLogs, setEmergencyLogs] = useState<EmergencyCaseLog[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_emergency_logs`);
+    return saved ? JSON.parse(saved) : INITIAL_EMERGENCY_LOGS;
+  });
+
+  const [touristFeedback, setTouristFeedback] = useState<TouristFeedbackEntry[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_tourist_feedback`);
+    return saved ? JSON.parse(saved) : INITIAL_TOURIST_FEEDBACK;
+  });
+
+  const [faqs, setFaqs] = useState<FAQItem[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_faqs`);
+    return saved ? JSON.parse(saved) : INITIAL_FAQS;
+  });
+
   const [documents, setDocuments] = useState<OfficialDocument[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_documents`);
     return saved ? JSON.parse(saved) : INITIAL_DOCUMENTS;
@@ -290,19 +397,6 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_audit`);
     return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
-  });
-
-  const [municipalityInfo, setMunicipalityInfo] = useState<typeof MUNICIPALITY_INFO>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_municipality_info`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { ...MUNICIPALITY_INFO, ...parsed };
-      } catch {
-        return MUNICIPALITY_INFO;
-      }
-    }
-    return MUNICIPALITY_INFO;
   });
 
   const [notifications, setNotifications] = useState<SystemNotification[]>([
@@ -376,20 +470,44 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [complaints]);
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_feedbacks`, JSON.stringify(feedbacks));
-  }, [feedbacks]);
-
-  useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_products`, JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_capacity_trainings`, JSON.stringify(capacityTrainings));
+  }, [capacityTrainings]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_investment_opps`, JSON.stringify(investmentOpportunities));
+  }, [investmentOpportunities]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_campaigns`, JSON.stringify(campaigns));
   }, [campaigns]);
 
   useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_marketing_collaterals`, JSON.stringify(marketingCollaterals));
+  }, [marketingCollaterals]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_marketing_partners`, JSON.stringify(marketingPartners));
+  }, [marketingPartners]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_social_metrics`, JSON.stringify(socialMetrics));
+  }, [socialMetrics]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_top_posts`, JSON.stringify(topPosts));
+  }, [topPosts]);
+
+  useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_scheduled_posts`, JSON.stringify(scheduledPosts));
   }, [scheduledPosts]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_social_campaigns`, JSON.stringify(socialCampaigns));
+  }, [socialCampaigns]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_tiac_logs`, JSON.stringify(tiacLogs));
@@ -398,6 +516,18 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_lost_found`, JSON.stringify(lostAndFound));
   }, [lostAndFound]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_emergency_logs`, JSON.stringify(emergencyLogs));
+  }, [emergencyLogs]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_tourist_feedback`, JSON.stringify(touristFeedback));
+  }, [touristFeedback]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_faqs`, JSON.stringify(faqs));
+  }, [faqs]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_documents`, JSON.stringify(documents));
@@ -421,15 +551,6 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setAuditLogs((prev) => [entry, ...prev.slice(0, 199)]);
   };
 
-  const updateMunicipalityInfo = (info: Partial<typeof MUNICIPALITY_INFO>) => {
-    setMunicipalityInfo((prev) => {
-      const updated = { ...prev, ...info };
-      localStorage.setItem(`${STORAGE_KEY}_municipality_info`, JSON.stringify(updated));
-      return updated;
-    });
-    addAuditLog('UPDATE', 'System Configuration', 'Updated official signatories and municipal leadership credentials');
-  };
-
   // Role Access Control checking (from Section IV. USER ACCESS LEVEL)
   const canAccess = (module: ModuleKey): boolean => {
     const role = currentUser.role;
@@ -440,21 +561,21 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
       case 'Administrative and Finance Personnel':
         return ['dashboard', 'admin_finance', 'documents', 'reports'].includes(module);
       case 'Research and Planning Personnel':
-        return ['dashboard', 'research_planning', 'destinations', 'reports', 'documents', 'feedback'].includes(module);
+        return ['dashboard', 'research_planning', 'destinations', 'reports', 'documents'].includes(module);
       case 'Policy Support and Regulation Personnel':
-        return ['dashboard', 'policy_regulation', 'establishments', 'reports', 'documents', 'feedback'].includes(module);
+        return ['dashboard', 'policy_regulation', 'establishments', 'reports', 'documents'].includes(module);
       case 'Product Development Personnel':
-        return ['dashboard', 'product_dev', 'destinations', 'msmes', 'reports', 'feedback'].includes(module);
+        return ['dashboard', 'product_dev', 'destinations', 'msmes', 'reports'].includes(module);
       case 'Promotion and Marketing Personnel':
         return ['dashboard', 'marketing', 'events', 'social_media', 'reports'].includes(module);
       case 'Social Media Manager':
         return ['dashboard', 'social_media', 'marketing', 'events'].includes(module);
       case 'Tourism Information Officer':
-        return ['dashboard', 'tiac', 'tourists', 'destinations', 'feedback'].includes(module);
+        return ['dashboard', 'tiac', 'tourists', 'destinations'].includes(module);
       case 'Data Encoder':
-        return ['dashboard', 'tourists', 'establishments', 'msmes', 'events', 'feedback'].includes(module);
+        return ['dashboard', 'tourists', 'establishments', 'msmes', 'events'].includes(module);
       case 'Guest/User':
-        return ['dashboard', 'destinations', 'events', 'product_dev', 'feedback'].includes(module);
+        return ['dashboard', 'destinations', 'events', 'product_dev'].includes(module);
       default:
         return true;
     }
@@ -617,16 +738,46 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CREATE', 'Research & Planning', `Uploaded tourism study: ${newRes.title}`);
   };
 
+  const updateResearch = (id: string, updated: Partial<TourismResearch>) => {
+    setResearch((prev) => prev.map((r) => (r.id === id ? { ...r, ...updated } : r)));
+    addAuditLog('UPDATE', 'Research & Planning', `Updated research study ${id}`);
+  };
+
+  const deleteResearch = (id: string) => {
+    setResearch((prev) => prev.filter((r) => r.id !== id));
+    addAuditLog('DELETE', 'Research & Planning', `Deleted research study ${id}`);
+  };
+
   const addPolicy = (polData: Omit<TourismPolicy, 'id'>) => {
     const newPol: TourismPolicy = { id: `pol-${Date.now()}`, ...polData };
     setPolicies((prev) => [newPol, ...prev]);
     addAuditLog('CREATE', 'Policy Support & Regulation', `Registered policy: ${newPol.referenceNumber}`);
   };
 
+  const updatePolicy = (id: string, updated: Partial<TourismPolicy>) => {
+    setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
+    addAuditLog('UPDATE', 'Policy Support & Regulation', `Updated policy: ${id}`);
+  };
+
+  const deletePolicy = (id: string) => {
+    setPolicies((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('DELETE', 'Policy Support & Regulation', `Removed policy: ${id}`);
+  };
+
   const addNotice = (notData: Omit<NoticeOfViolation, 'id'>) => {
     const newNot: NoticeOfViolation = { id: `nov-${Date.now()}`, ...notData };
     setNotices((prev) => [newNot, ...prev]);
     addAuditLog('CREATE', 'Policy Support & Regulation', `Issued notice of violation to ${newNot.establishmentName}`);
+  };
+
+  const updateNotice = (id: string, updated: Partial<NoticeOfViolation>) => {
+    setNotices((prev) => prev.map((n) => (n.id === id ? { ...n, ...updated } : n)));
+    addAuditLog('UPDATE', 'Policy Support & Regulation', `Updated notice: ${id}`);
+  };
+
+  const deleteNotice = (id: string) => {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+    addAuditLog('DELETE', 'Policy Support & Regulation', `Deleted notice: ${id}`);
   };
 
   const resolveNotice = (id: string) => {
@@ -637,43 +788,26 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addComplaint = (compData: Omit<TouristComplaint, 'id'>) => {
     const newComp: TouristComplaint = { id: `comp-${Date.now()}`, ...compData };
     setComplaints((prev) => [newComp, ...prev]);
-    addAuditLog('CREATE', 'Tourist Feedback & Grievance', `Logged tourist complaint ${newComp.trackingNumber} against ${newComp.targetEntity}`);
+    addAuditLog('CREATE', 'Policy Support & Regulation', `Logged tourist complaint ${newComp.trackingNumber}`);
   };
 
   const updateComplaintStatus = (id: string, status: TouristComplaint['status'], resolutionNotes?: string) => {
     setComplaints((prev) =>
       prev.map((c) => (c.id === id ? { ...c, status, resolutionNotes: resolutionNotes || c.resolutionNotes } : c))
     );
-    addAuditLog('RESOLVE', 'Tourist Feedback & Grievance', `Updated complaint ${id} status to ${status}`);
+    addAuditLog('RESOLVE', 'Policy Support & Regulation', `Updated complaint ${id} status to ${status}`);
   };
 
-  const updateComplaint = (id: string, updated: Partial<TouristComplaint>) => {
+  const updateComplaint = (id: string, data: Partial<TouristComplaint>) => {
     setComplaints((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
+      prev.map((c) => (c.id === id ? { ...c, ...data } : c))
     );
-    addAuditLog('UPDATE', 'Tourist Feedback & Grievance', `Updated complaint dossier ${id}`);
+    addAuditLog('UPDATE', 'Policy Support & Regulation', `Updated complaint ${id}`);
   };
 
   const deleteComplaint = (id: string) => {
     setComplaints((prev) => prev.filter((c) => c.id !== id));
-    addAuditLog('DELETE', 'Tourist Feedback & Grievance', `Deleted complaint record ${id}`);
-  };
-
-  // Feedback & Satisfaction Tracking
-  const addFeedback = (fbData: Omit<TouristFeedback, 'id'>) => {
-    const newFb: TouristFeedback = { id: `fb-${Date.now()}`, ...fbData };
-    setFeedbacks((prev) => [newFb, ...prev]);
-    addAuditLog('CREATE', 'Tourist Feedback & Grievance', `Logged visitor satisfaction survey ${newFb.referenceNumber} for ${newFb.destinationVisited}`);
-  };
-
-  const updateFeedbackStatus = (id: string, status: TouristFeedback['status']) => {
-    setFeedbacks((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
-    addAuditLog('UPDATE', 'Tourist Feedback & Grievance', `Updated feedback ${id} status to ${status}`);
-  };
-
-  const deleteFeedback = (id: string) => {
-    setFeedbacks((prev) => prev.filter((f) => f.id !== id));
-    addAuditLog('DELETE', 'Tourist Feedback & Grievance', `Deleted feedback entry ${id}`);
+    addAuditLog('DELETE', 'Policy Support & Regulation', `Deleted complaint: ${id}`);
   };
 
   // Products, Marketing, Social
@@ -683,10 +817,110 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CREATE', 'Tourism Product Development', `Added product concept ${newProd.productName}`);
   };
 
+  const updateProduct = (id: string, data: Partial<TourismProduct>) => {
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    addAuditLog('UPDATE', 'Tourism Product Development', `Updated tourism product: ${id}`);
+  };
+
+  const deleteProduct = (id: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('DELETE', 'Tourism Product Development', `Deleted tourism product: ${id}`);
+  };
+
+  const addCapacityTraining = (tData: Omit<CapacityBuildingTraining, 'id'>) => {
+    const newT: CapacityBuildingTraining = { id: `cbt-${Date.now()}`, ...tData };
+    setCapacityTrainings((prev) => [newT, ...prev]);
+    addAuditLog('CREATE', 'Tourism Product Development', `Added capacity building training: ${newT.title}`);
+  };
+
+  const updateCapacityTraining = (id: string, data: Partial<CapacityBuildingTraining>) => {
+    setCapacityTrainings((prev) => prev.map((t) => (t.id === id ? { ...t, ...data } : t)));
+    addAuditLog('UPDATE', 'Tourism Product Development', `Updated capacity training: ${id}`);
+  };
+
+  const deleteCapacityTraining = (id: string) => {
+    setCapacityTrainings((prev) => prev.filter((t) => t.id !== id));
+    addAuditLog('DELETE', 'Tourism Product Development', `Deleted capacity training: ${id}`);
+  };
+
+  const addInvestmentOpportunity = (oppData: Omit<TourismInvestmentOpportunity, 'id'>) => {
+    const newOpp: TourismInvestmentOpportunity = { id: `inv-${Date.now()}`, ...oppData };
+    setInvestmentOpportunities((prev) => [newOpp, ...prev]);
+    addAuditLog('CREATE', 'Tourism Product Development', `Added investment opportunity: ${newOpp.projectTitle}`);
+  };
+
+  const updateInvestmentOpportunity = (id: string, data: Partial<TourismInvestmentOpportunity>) => {
+    setInvestmentOpportunities((prev) => prev.map((o) => (o.id === id ? { ...o, ...data } : o)));
+    addAuditLog('UPDATE', 'Tourism Product Development', `Updated investment opportunity: ${id}`);
+  };
+
+  const deleteInvestmentOpportunity = (id: string) => {
+    setInvestmentOpportunities((prev) => prev.filter((o) => o.id !== id));
+    addAuditLog('DELETE', 'Tourism Product Development', `Deleted investment opportunity: ${id}`);
+  };
+
   const addCampaign = (campData: Omit<MarketingCampaign, 'id'>) => {
     const newCamp: MarketingCampaign = { id: `mkt-${Date.now()}`, ...campData };
     setCampaigns((prev) => [newCamp, ...prev]);
     addAuditLog('CREATE', 'Promotion & Marketing', `Launched campaign: ${newCamp.campaignTitle}`);
+  };
+
+  const updateCampaign = (id: string, data: Partial<MarketingCampaign>) => {
+    setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)));
+    addAuditLog('UPDATE', 'Promotion & Marketing', `Updated marketing campaign: ${id}`);
+  };
+
+  const deleteCampaign = (id: string) => {
+    setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    addAuditLog('DELETE', 'Promotion & Marketing', `Deleted marketing campaign: ${id}`);
+  };
+
+  const addCollateral = (itemData: Omit<MarketingCollateralItem, 'id'>) => {
+    const newItem: MarketingCollateralItem = { id: `col-${Date.now()}`, ...itemData };
+    setMarketingCollaterals((prev) => [newItem, ...prev]);
+    addAuditLog('CREATE', 'Promotion & Marketing', `Registered collateral: ${newItem.title}`);
+  };
+
+  const updateCollateral = (id: string, data: Partial<MarketingCollateralItem>) => {
+    setMarketingCollaterals((prev) => prev.map((item) => (item.id === id ? { ...item, ...data } : item)));
+    addAuditLog('UPDATE', 'Promotion & Marketing', `Updated collateral: ${id}`);
+  };
+
+  const deleteCollateral = (id: string) => {
+    setMarketingCollaterals((prev) => prev.filter((item) => item.id !== id));
+    addAuditLog('DELETE', 'Promotion & Marketing', `Deleted collateral: ${id}`);
+  };
+
+  const addPartner = (partnerData: Omit<MarketingPartner, 'id'>) => {
+    const newPartner: MarketingPartner = { id: `part-${Date.now()}`, ...partnerData };
+    setMarketingPartners((prev) => [newPartner, ...prev]);
+    addAuditLog('CREATE', 'Promotion & Marketing', `Enrolled partner: ${newPartner.name}`);
+  };
+
+  const updatePartner = (id: string, data: Partial<MarketingPartner>) => {
+    setMarketingPartners((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    addAuditLog('UPDATE', 'Promotion & Marketing', `Updated partner: ${id}`);
+  };
+
+  const deletePartner = (id: string) => {
+    setMarketingPartners((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('DELETE', 'Promotion & Marketing', `Deleted partner: ${id}`);
+  };
+
+  const updatePlatformStat = (platform: string, data: Partial<SocialMediaPlatformStat>) => {
+    setSocialMetrics((prev) => prev.map((s) => (s.platform === platform ? { ...s, ...data } : s)));
+    addAuditLog('UPDATE', 'Social Media Management', `Updated monthly metrics for ${platform}`);
+  };
+
+  const addTopPost = (postData: Omit<TopSocialPost, 'id'>) => {
+    const newPost: TopSocialPost = { id: `tp-${Date.now()}`, ...postData };
+    setTopPosts((prev) => [newPost, ...prev]);
+    addAuditLog('CREATE', 'Social Media Management', `Added top performing post: ${newPost.title}`);
+  };
+
+  const deleteTopPost = (id: string) => {
+    setTopPosts((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('DELETE', 'Social Media Management', `Deleted top post record: ${id}`);
   };
 
   const addScheduledPost = (postData: Omit<ScheduledPost, 'id'>) => {
@@ -695,11 +929,49 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('CREATE', 'Social Media Management', `Scheduled ${newPost.platform} post: ${newPost.title}`);
   };
 
+  const updateScheduledPost = (id: string, data: Partial<ScheduledPost>) => {
+    setScheduledPosts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    addAuditLog('UPDATE', 'Social Media Management', `Updated scheduled post: ${id}`);
+  };
+
+  const deleteScheduledPost = (id: string) => {
+    setScheduledPosts((prev) => prev.filter((p) => p.id !== id));
+    addAuditLog('DELETE', 'Social Media Management', `Deleted scheduled post: ${id}`);
+  };
+
+  const publishScheduledPost = (id: string) => {
+    setScheduledPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: 'Published' as const } : p))
+    );
+    addAuditLog('UPDATE', 'Social Media Management', `Marked post ${id} as Published to live feed`);
+  };
+
+  const addSocialCampaign = (campData: Omit<SocialCampaignMetric, 'id'>) => {
+    const newCamp: SocialCampaignMetric = { id: `sc-${Date.now()}`, ...campData };
+    setSocialCampaigns((prev) => [newCamp, ...prev]);
+    addAuditLog('CREATE', 'Social Media Management', `Added social campaign tracker: ${newCamp.campaignName}`);
+  };
+
+  const deleteSocialCampaign = (id: string) => {
+    setSocialCampaigns((prev) => prev.filter((c) => c.id !== id));
+    addAuditLog('DELETE', 'Social Media Management', `Deleted social campaign tracker: ${id}`);
+  };
+
   // TIAC & Lost and Found
   const addTiacLog = (logData: Omit<VisitorAssistanceLog, 'id'>) => {
     const newLog: VisitorAssistanceLog = { id: `tiac-${Date.now()}`, ...logData };
     setTiacLogs((prev) => [newLog, ...prev]);
     addAuditLog('CREATE', 'TIAC Assistance', `Logged visitor assistance for ${newLog.visitorName}`);
+  };
+
+  const updateTiacLog = (id: string, data: Partial<VisitorAssistanceLog>) => {
+    setTiacLogs((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)));
+    addAuditLog('UPDATE', 'TIAC Assistance', `Updated visitor assistance record: ${id}`);
+  };
+
+  const deleteTiacLog = (id: string) => {
+    setTiacLogs((prev) => prev.filter((l) => l.id !== id));
+    addAuditLog('DELETE', 'TIAC Assistance', `Deleted visitor assistance record: ${id}`);
   };
 
   const addLostItem = (itemData: Omit<LostAndFoundItem, 'id'>) => {
@@ -724,11 +996,49 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addAuditLog('RESOLVE', 'TIAC Lost & Found', `Released item ${id} to verified owner ${claimantName}`);
   };
 
+  const deleteLostItem = (id: string) => {
+    setLostAndFound((prev) => prev.filter((item) => item.id !== id));
+    addAuditLog('DELETE', 'TIAC Lost & Found', `Deleted lost & found record: ${id}`);
+  };
+
+  const addEmergencyLog = (logData: Omit<EmergencyCaseLog, 'id'>) => {
+    const newLog: EmergencyCaseLog = { id: `emg-${Date.now()}`, ...logData };
+    setEmergencyLogs((prev) => [newLog, ...prev]);
+    addAuditLog('CREATE', 'TIAC Emergency Coordination', `Logged emergency dispatch: ${newLog.incidentNumber} (${newLog.incidentType})`);
+  };
+
+  const updateEmergencyLog = (id: string, data: Partial<EmergencyCaseLog>) => {
+    setEmergencyLogs((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)));
+    addAuditLog('UPDATE', 'TIAC Emergency Coordination', `Updated emergency case status: ${id}`);
+  };
+
+  const addTouristFeedback = (feedbackData: Omit<TouristFeedbackEntry, 'id'>) => {
+    const newFeedback: TouristFeedbackEntry = { id: `fb-${Date.now()}`, ...feedbackData };
+    setTouristFeedback((prev) => [newFeedback, ...prev]);
+    addAuditLog('CREATE', 'TIAC Feedback & CSAT', `Logged tourist feedback from ${newFeedback.visitorName}`);
+  };
+
+  const addFAQ = (faqData: Omit<FAQItem, 'id'>) => {
+    const newFaq: FAQItem = { id: `faq-${Date.now()}`, ...faqData };
+    setFaqs((prev) => [newFaq, ...prev]);
+    addAuditLog('CREATE', 'TIAC Knowledge Base', `Added FAQ item: ${newFaq.question}`);
+  };
+
   // Documents
   const addDocument = (docData: Omit<OfficialDocument, 'id'>) => {
     const newDoc: OfficialDocument = { id: `doc-${Date.now()}`, ...docData };
     setDocuments((prev) => [newDoc, ...prev]);
     addAuditLog('CREATE', 'Document Management System', `Archived official document ${newDoc.controlNumber}`);
+  };
+
+  const updateDocument = (id: string, data: Partial<OfficialDocument>) => {
+    setDocuments((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
+    addAuditLog('UPDATE', 'Document Management System', `Updated official document ${id}`);
+  };
+
+  const deleteDocument = (id: string) => {
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
+    addAuditLog('DELETE', 'Document Management System', `Removed document record ${id}`);
   };
 
   // Notifications
@@ -765,12 +1075,21 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
         policies,
         notices,
         complaints,
-        feedbacks,
         products,
+        capacityTrainings,
+        investmentOpportunities,
         campaigns,
+        marketingCollaterals,
+        marketingPartners,
+        socialMetrics,
+        topPosts,
         scheduledPosts,
+        socialCampaigns,
         tiacLogs,
         lostAndFound,
+        emergencyLogs,
+        touristFeedback,
+        faqs,
         documents,
         auditLogs,
       },
@@ -796,12 +1115,21 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (d.policies) setPolicies(d.policies);
       if (d.notices) setNotices(d.notices);
       if (d.complaints) setComplaints(d.complaints);
-      if (d.feedbacks) setFeedbacks(d.feedbacks);
       if (d.products) setProducts(d.products);
+      if (d.capacityTrainings) setCapacityTrainings(d.capacityTrainings);
+      if (d.investmentOpportunities) setInvestmentOpportunities(d.investmentOpportunities);
       if (d.campaigns) setCampaigns(d.campaigns);
+      if (d.marketingCollaterals) setMarketingCollaterals(d.marketingCollaterals);
+      if (d.marketingPartners) setMarketingPartners(d.marketingPartners);
+      if (d.socialMetrics) setSocialMetrics(d.socialMetrics);
+      if (d.topPosts) setTopPosts(d.topPosts);
       if (d.scheduledPosts) setScheduledPosts(d.scheduledPosts);
+      if (d.socialCampaigns) setSocialCampaigns(d.socialCampaigns);
       if (d.tiacLogs) setTiacLogs(d.tiacLogs);
       if (d.lostAndFound) setLostAndFound(d.lostAndFound);
+      if (d.emergencyLogs) setEmergencyLogs(d.emergencyLogs);
+      if (d.touristFeedback) setTouristFeedback(d.touristFeedback);
+      if (d.faqs) setFaqs(d.faqs);
       if (d.documents) setDocuments(d.documents);
       addAuditLog('UPDATE', 'Database Management', 'Successfully restored database from uploaded backup file');
       return true;
@@ -823,12 +1151,21 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPolicies(INITIAL_POLICIES);
     setNotices(INITIAL_NOTICES);
     setComplaints(INITIAL_COMPLAINTS);
-    setFeedbacks(INITIAL_FEEDBACKS);
     setProducts(INITIAL_PRODUCTS);
+    setCapacityTrainings(INITIAL_CAPACITY_TRAININGS);
+    setInvestmentOpportunities(INITIAL_INVESTMENT_OPPORTUNITIES);
     setCampaigns(INITIAL_CAMPAIGNS);
+    setMarketingCollaterals(INITIAL_COLLATERALS);
+    setMarketingPartners(INITIAL_MARKETING_PARTNERS);
+    setSocialMetrics(INITIAL_SOCIAL_METRICS);
+    setTopPosts(INITIAL_TOP_POSTS);
     setScheduledPosts(INITIAL_SCHEDULED_POSTS);
+    setSocialCampaigns(INITIAL_SOCIAL_CAMPAIGNS);
     setTiacLogs(INITIAL_TIAC_LOGS);
     setLostAndFound(INITIAL_LOST_AND_FOUND);
+    setEmergencyLogs(INITIAL_EMERGENCY_LOGS);
+    setTouristFeedback(INITIAL_TOURIST_FEEDBACK);
+    setFaqs(INITIAL_FAQS);
     setDocuments(INITIAL_DOCUMENTS);
     addAuditLog('UPDATE', 'Database Management', 'Reset system state to official baseline seed data');
   };
@@ -845,8 +1182,7 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setActiveModule,
         currentModule: activeModule,
         setCurrentModule: setActiveModule,
-        municipalityInfo,
-        updateMunicipalityInfo,
+        municipalityInfo: MUNICIPALITY_INFO,
         tourists,
         addTourist,
         updateTourist,
@@ -879,34 +1215,83 @@ export const TourismProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateFinancial,
         research,
         addResearch,
+        updateResearch,
+        deleteResearch,
         policies,
         addPolicy,
+        updatePolicy,
+        deletePolicy,
         notices,
         addNotice,
+        updateNotice,
+        deleteNotice,
         resolveNotice,
         complaints,
         addComplaint,
         updateComplaintStatus,
         updateComplaint,
         deleteComplaint,
-        feedbacks,
-        addFeedback,
-        updateFeedbackStatus,
-        deleteFeedback,
+        feedbacks: touristFeedback,
+        addFeedback: addTouristFeedback,
+        updateFeedbackStatus: (id: string, status: string) => {
+          setTouristFeedback((prev) => prev.map((f) => f.id === id ? { ...f, status } as any : f));
+        },
         products,
         addProduct,
+        updateProduct,
+        deleteProduct,
+        capacityTrainings,
+        addCapacityTraining,
+        updateCapacityTraining,
+        deleteCapacityTraining,
+        investmentOpportunities,
+        addInvestmentOpportunity,
+        updateInvestmentOpportunity,
+        deleteInvestmentOpportunity,
         campaigns,
         addCampaign,
+        updateCampaign,
+        deleteCampaign,
+        marketingCollaterals,
+        addCollateral,
+        updateCollateral,
+        deleteCollateral,
+        marketingPartners,
+        addPartner,
+        updatePartner,
+        deletePartner,
         socialMetrics,
+        updatePlatformStat,
+        topPosts,
+        addTopPost,
+        deleteTopPost,
         scheduledPosts,
         addScheduledPost,
+        updateScheduledPost,
+        deleteScheduledPost,
+        publishScheduledPost,
+        socialCampaigns,
+        addSocialCampaign,
+        deleteSocialCampaign,
         tiacLogs,
         addTiacLog,
+        updateTiacLog,
+        deleteTiacLog,
         lostAndFound,
         addLostItem,
         claimLostItem,
+        deleteLostItem,
+        emergencyLogs,
+        addEmergencyLog,
+        updateEmergencyLog,
+        touristFeedback,
+        addTouristFeedback,
+        faqs,
+        addFAQ,
         documents,
         addDocument,
+        updateDocument,
+        deleteDocument,
         auditLogs,
         addAuditLog,
         notifications,

@@ -27,7 +27,6 @@ export type ModuleKey =
   | 'msmes'
   | 'destinations'
   | 'events'
-  | 'feedback'
   | 'admin_finance'
   | 'research_planning'
   | 'policy_regulation'
@@ -130,12 +129,6 @@ export interface MSMETourism {
   productPhotos: string[];
   inventoryCount: number;
   averagePrice: number;
-  indigenousAffiliation?: 'Blaan Master Artisan' | 'Tagakaolo Artisan' | 'General Community Artisan' | 'Cooperative';
-  otopCertified?: boolean;
-  grantAmountReceived?: number;
-  marketOutlets?: string[];
-  shelfLifeOrDurability?: string;
-  fdaOrHalalStatus?: 'FDA Approved' | 'Halal Certified' | 'Exempt / Artisan' | 'Application in Progress';
 }
 
 export type DestinationClassification = 'Natural / Eco-tourism' | 'Cultural & Heritage' | 'Adventure & Sports' | 'Agri-tourism / Farm' | 'Recreational / Leisure';
@@ -165,18 +158,7 @@ export interface TourismDestination {
   photos: string[];
   droneImagesCount: number;
   hasGisMap: boolean;
-  dotRatingScore?: number;
-  dotClass?: 'Class AAA' | 'Class AA' | 'Class A' | 'Developing Potential';
-  ecologicalVulnerability?: 'Low' | 'Moderate' | 'High';
-  gateStatus?: 'Open Entry' | 'Controlled Throttle' | 'Temporary Gate Halt';
 }
-
-export type EventCategory =
-  | 'Flagship Cultural Festival'
-  | 'Eco-Sports & Adventure'
-  | 'Agri-Trade & Food Expo'
-  | 'Indigenous Heritage Ritual'
-  | 'Civic & Commemorative';
 
 export interface TourismEvent {
   id: string;
@@ -197,14 +179,6 @@ export interface TourismEvent {
   evaluationRating: number;
   documentationUrls: string[];
   financialReportStatus: 'Approved & Liquidated' | 'Under Audit' | 'Pending Submission';
-  eventCategory?: EventCategory;
-  permitNumber?: string;
-  barangay?: string;
-  securityDeployment?: string;
-  wasteManagementPlan?: string;
-  economicImpactEstimate?: number;
-  bannerPhoto?: string;
-  coordinatingAgencies?: string[];
 }
 
 // Administrative and Finance Section
@@ -287,90 +261,95 @@ export interface TourismPolicy {
 
 export interface NoticeOfViolation {
   id: string;
-  docketNumber?: string;
   establishmentName: string;
-  barangay?: string;
   violationDate: string;
   violationDetails: string;
   ordinanceViolated: string;
   correctiveActionRequired: string;
   deadline: string;
+  status: 'Pending Corrective Action' | 'Resolved & Cleared' | 'Escalated to Legal';
+  docketNumber?: string;
+  barangay?: string;
   inspectingOfficer?: string;
   fineAmount?: number;
-  resolutionDate?: string;
-  recommendation?: string;
-  status: 'Pending Corrective Action' | 'Resolved & Cleared' | 'Escalated to Legal';
 }
 
 export interface TouristComplaint {
   id: string;
   trackingNumber: string;
   complainant: string;
-  contactNumber?: string;
-  email?: string;
   dateFiled: string;
   targetEntity: string;
-  entityType?: 'Transport Operator' | 'Accommodation / Resort' | 'Tour Guide' | 'Dining / Food Stall' | 'Destination Facility' | 'LGU Tourism Counter';
-  category: 'Overpricing / Unofficial Fee' | 'Safety / Sanitation' | 'Service Quality' | 'False Advertising' | 'Environmental Concern' | 'Harassment / Misconduct' | 'Facility Inaccessibility';
-  urgency?: 'Low' | 'Medium' | 'High' | 'Emergency / Red-Flag';
+  category: 'Overpricing / Unofficial Fee' | 'Safety / Sanitation' | 'Service Quality' | 'False Advertising' | 'Environmental Concern';
   description: string;
   status: 'Received' | 'Investigation On-going' | 'Mediation Scheduled' | 'Resolved / Closed';
   resolutionNotes?: string;
+  contactNumber?: string;
+  entityType?: string;
+  urgency?: string;
+  barangay?: string;
+  email?: string;
   actionTaken?: string;
   assignedOfficer?: string;
   resolutionDate?: string;
-  slaStatus?: 'Within 72hr ARTA SLA' | 'Escalated' | 'Resolved On-Time';
-  complainantSatisfied?: boolean;
-  barangay?: string;
-  evidenceUrls?: string[];
+  slaStatus?: string;
 }
 
-export interface TouristFeedback {
-  id: string;
-  referenceNumber: string;
-  dateSubmitted: string;
-  touristName: string;
-  touristOrigin: string;
-  destinationVisited: string;
-  overallRating: number; // 1 to 5
-  ratings: {
-    cleanliness: number;
-    safetySecurity: number;
-    hospitalityFriendliness: number;
-    facilitiesAmenities: number;
-    valueForMoney: number;
-    accessibilitySignages: number;
-  };
-  npsScore: number; // 0-10 Net Promoter Score
-  artaSQD: {
-    responsiveness: number; // SQD1 (1-5)
-    reliability: number; // SQD2
-    facilityAccess: number; // SQD3
-    communication: number; // SQD4
-    costsFairness: number; // SQD5
-    integrity: number; // SQD6
-    safetyAssurance: number; // SQD7
-    outcomeOverall: number; // SQD8
-  };
-  positiveRemarks: string;
-  areasForImprovement: string;
-  wouldRecommend: boolean;
-  submissionChannel: 'On-Site Survey Station' | 'TIAC Kiosk' | 'Digital Mobile Form' | 'Paper Exit Survey';
-  status: 'Reviewed' | 'Pending Review' | 'Action Endorsed';
-}
+export type TouristFeedback = TouristFeedbackEntry;
 
 // Tourism Product Development
+export type TourismCluster = 'Cultural Tourism' | 'Eco-tourism' | 'Agri-tourism' | 'Adventure Tourism';
+export type ProductLifecycleStage = 'Introduction' | 'Growth' | 'Maturity' | 'Decline / Revitalization';
+export type ProductDevelopmentStatus = 'Concept / Ideation' | 'Feasibility Study' | 'Infrastructure / Site Development' | 'Pilot Testing / Trial Run' | 'Commercial Operations';
+
 export interface TourismProduct {
   id: string;
   productName: string;
-  cluster: 'Cultural Tourism' | 'Eco-tourism' | 'Agri-tourism' | 'Adventure Tourism';
+  cluster: TourismCluster;
+  productType?: 'Existing' | 'Proposed';
+  lifecycle?: ProductLifecycleStage;
+  developmentStatus?: ProductDevelopmentStatus;
   stage: 'Conceptual Phase' | 'Feasibility / Pilot' | 'Market-Ready' | 'Established';
   targetMarket: string;
   communityStakeholders: string;
+  barangay?: string;
+  leadOrganization?: string;
   investmentRequired: number;
   capacityBuildingConducted: string[];
-  evaluationScore: number; // 0-100
+  evaluationScore: number; // 0-100 (Product Readiness Index)
   readinessStatus: 'Ready for Promotion' | 'Requires Facility Upgrades' | 'Under Community Validation';
+  keyFeatures?: string[];
+  lastEvaluatedDate?: string;
+}
+
+export interface CapacityBuildingTraining {
+  id: string;
+  title: string;
+  cluster: TourismCluster | 'Cross-Cutting';
+  targetBeneficiaries: string;
+  partnerAgency: string; // e.g. "DOT Region XII", "TESDA", "NCIP", "DTI"
+  dateConducted: string;
+  durationHours: number;
+  venue: string;
+  participantsCount: number;
+  femaleParticipants: number;
+  ipParticipants: number;
+  certifiedCount: number;
+  status: 'Completed' | 'Ongoing' | 'Scheduled';
+}
+
+export interface TourismInvestmentOpportunity {
+  id: string;
+  projectTitle: string;
+  cluster: TourismCluster;
+  barangay: string;
+  estimatedCapital: number;
+  businessModel: 'Public-Private Partnership (PPP)' | 'LGU-Community Cooperative' | 'Joint Venture' | 'Private Concession';
+  projectedPaybackYears: number;
+  lguIncentives: string;
+  briefDescription: string;
+  readiness: 'Bankable / Investment-Ready' | 'Feasibility Underway' | 'Concept Pipeline';
+  targetInvestor: string;
 }
 
 // Promotion and Marketing
@@ -382,11 +361,41 @@ export interface MarketingCampaign {
   startDate: string;
   endDate: string;
   budget: number;
+  actualExpenses?: number;
   channels: string[];
   leadPartner: string;
   status: 'Active' | 'Completed' | 'In Production';
   deliverablesSummary: string;
+  keyDeliverables?: string[];
   viewsOrReach: number;
+  roiLeadsGenerated?: number;
+  campaignManager?: string;
+}
+
+export type CollateralCategory = 'Tourism Video' | 'Brochure' | 'Flyer' | 'Tarpaulin / Billboard' | 'Digital Poster';
+
+export interface MarketingCollateralItem {
+  id: string;
+  title: string;
+  category: CollateralCategory;
+  targetAudience: string;
+  fileFormat: string;
+  dimensionsOrDuration: string;
+  quantityOrCopies: number;
+  storageLocationOrUrl: string;
+  dateProduced: string;
+  status: 'In Distribution' | 'Archived' | 'In Production';
+}
+
+export interface MarketingPartner {
+  id: string;
+  name: string;
+  type: 'Travel Fair / Expo' | 'Media Partner' | 'Tourism Influencer' | 'Industry Association';
+  contactPerson: string;
+  contactDetails: string;
+  reachAudience: string;
+  collaborationScope: string;
+  status: 'Active Partner' | 'Past Collaboration' | 'Prospective';
 }
 
 // Social Media Management
@@ -397,6 +406,11 @@ export interface SocialMediaPlatformStat {
   monthlyEngagement: number;
   shares: number;
   reactions: number;
+  comments: number;
+  postsPublished: number;
+  avgEngagementRate: number;
+  growthRatePercent: number;
+  videoViews?: number;
   topPostTitle: string;
   topPostEngagement: string;
 }
@@ -408,6 +422,45 @@ export interface ScheduledPost {
   scheduledTime: string;
   campaignTag: string;
   status: 'Scheduled' | 'Published' | 'Draft';
+  postType?: 'Video / Reel' | 'Photo Carousel' | 'Story' | 'Infographic / Advisory' | 'Text / Article';
+  captionSnippet?: string;
+  creator?: string;
+  targetAudience?: string;
+  mediaUrl?: string;
+  hashtags?: string[];
+}
+
+export interface TopSocialPost {
+  id: string;
+  platform: 'Facebook' | 'Instagram' | 'TikTok' | 'YouTube';
+  title: string;
+  postType: 'Video / Reel' | 'Photo Carousel' | 'Live Stream' | 'Infographic / Advisory' | 'Text / Article';
+  publishDate: string;
+  campaignTag: string;
+  impressionsReach: number;
+  reactions: number;
+  comments: number;
+  shares: number;
+  engagementRate: number;
+  permalink?: string;
+  captionExcerpt: string;
+  sentimentRating: string;
+  keyHighlight: string;
+}
+
+export interface SocialCampaignMetric {
+  id: string;
+  campaignName: string;
+  hashtags: string;
+  channels: ('Facebook' | 'Instagram' | 'TikTok' | 'YouTube')[];
+  totalReach: number;
+  totalEngagements: number;
+  totalShares: number;
+  ugcCount: number;
+  influencerPartners: string;
+  inquiriesGenerated: number;
+  status: 'Active' | 'Completed' | 'Upcoming';
+  dateRange: string;
 }
 
 // TIAC (Tourism Information and Assistance Center)
@@ -416,36 +469,129 @@ export interface VisitorAssistanceLog {
   timestamp: string;
   visitorName: string;
   contact: string;
-  assistanceType: 'Walk-in Inquiries' | 'Online / Telephone Inquiry' | 'Lost & Found' | 'Emergency Assistance' | 'Referral / Guide Booking' | 'Feedback / Survey';
+  visitorOrigin?: string;
+  groupSize?: number;
+  inquiryChannel?: 'Walk-in Desk' | 'Phone Hotline' | 'Email' | 'Social Media' | 'Tourism Booth';
+  assistanceType: 'Walk-in Inquiries' | 'Online / Telephone Inquiry' | 'Lost & Found' | 'Emergency Assistance' | 'Referral / Guide Booking' | 'Feedback / Survey' | 'Information Requests';
+  destinationInterest?: string;
   details: string;
   actionTaken: string;
   officerInCharge: string;
   status: 'Resolved' | 'Referred' | 'Pending Follow-up';
+  urgencyLevel?: 'Standard' | 'Urgent' | 'Emergency';
 }
 
 export interface LostAndFoundItem {
   id: string;
   itemDescription: string;
+  category?: 'Electronics / Gadgets' | 'Personal Items / Bags' | 'Wallets & IDs' | 'Documents / Keys' | 'Apparel & Gear';
   locationFound: string;
   dateFound: string;
   foundBy: string;
+  custodyOfficer?: string;
+  storageLocation?: string;
   status: 'Unclaimed' | 'Claimed by Owner' | 'Turned over to PNP';
   dateClaimed?: string;
   claimantName?: string;
+  contactNumber?: string;
+}
+
+export interface EmergencyCaseLog {
+  id: string;
+  incidentNumber: string;
+  timestamp: string;
+  incidentType: 'Medical Assistance' | 'Trail Incident / Lost Hiker' | 'Vehicular Breakdown' | 'Weather Advisory Distress' | 'Minor Injury';
+  location: string;
+  reportedBy: string;
+  contactNumber: string;
+  respondingAgencies: string[];
+  actionsTaken: string;
+  outcomeStatus: 'Active / Responding' | 'Stabilized & Transported' | 'Resolved On-site';
+  officerInCharge: string;
+}
+
+export interface TouristFeedbackEntry {
+  id: string;
+  date: string;
+  visitorName: string;
+  visitorOrigin: string;
+  destinationVisited: string;
+  overallRating: number;
+  cleanlinessRating: number;
+  safetyRating: number;
+  hospitalityRating: number;
+  comments: string;
+  recommendToOthers: boolean;
+  submissionChannel?: string;
+  referenceNumber?: string;
+  npsScore?: number;
+  ratings?: {
+    staffCourtesy?: number;
+    facilityCondition?: number;
+    valueForMoney?: number;
+    accessibility?: number;
+    overallExperience?: number;
+    informationAccuracy?: number;
+    cleanliness?: number;
+    safetySecurity?: number;
+    hospitalityFriendliness?: number;
+    facilitiesAmenities?: number;
+    accessibilitySignages?: number;
+    [key: string]: any;
+  };
+  touristName?: string;
+  touristOrigin?: string;
+  positiveRemarks?: string;
+  areasForImprovement?: string;
+  dateSubmitted?: string;
+  status?: string;
+  artaSQD?: any;
+  wouldRecommend?: boolean;
+}
+
+export interface FAQItem {
+  id: string;
+  category: 'Logistics & Travel' | 'Attractions & Permits' | 'Accommodations & Rates' | 'Culture & Etiquette' | 'Emergency & Safety';
+  question: string;
+  answer: string;
+  relatedDestinations?: string;
 }
 
 // Document Management System (DMS)
+export type DocumentCategory =
+  | 'Memoranda'
+  | 'Office Orders'
+  | 'Executive Orders'
+  | 'Ordinances'
+  | 'Minutes of Meetings'
+  | 'Attendance Sheets'
+  | 'Letters'
+  | 'Reports'
+  | 'MOAs'
+  | 'Resolutions'
+  | 'Photos'
+  | 'Videos'
+  | 'GIS Maps'
+  | 'Inspection Reports'
+  | 'Official Letters'
+  | 'MOA / MOU';
+
 export interface OfficialDocument {
   id: string;
   controlNumber: string;
   title: string;
-  category: 'Memoranda' | 'Office Orders' | 'Executive Orders' | 'Ordinances' | 'Minutes of Meetings' | 'Attendance Sheets' | 'Official Letters' | 'MOA / MOU' | 'Resolutions' | 'Inspection Reports';
+  category: DocumentCategory;
   dateIssued: string;
   signatory: string;
+  officeOrigin?: string;
   fileSize: string;
-  fileType: 'PDF' | 'DOCX' | 'XLSX' | 'JPG';
+  fileType: 'PDF' | 'DOCX' | 'XLSX' | 'JPG' | 'PNG' | 'MP4' | 'ZIP' | 'SHP' | string;
   tags: string[];
   isConfidential: boolean;
+  description?: string;
+  downloadUrl?: string;
+  status?: 'Active / In Force' | 'Archived' | 'Superseded' | 'Under Review';
+  mediaThumbnail?: string;
 }
 
 // System Audit Trail

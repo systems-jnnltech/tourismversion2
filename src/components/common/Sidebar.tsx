@@ -17,7 +17,6 @@ import {
   FileSpreadsheet,
   Lock,
   ChevronRight,
-  MessageSquareHeart,
 } from 'lucide-react';
 import { useTourism } from '../../context/TourismContext';
 import { ModuleKey } from '../../types';
@@ -36,21 +35,18 @@ interface NavGroup {
   items: NavItem[];
 }
 
-export interface SidebarProps {
+interface SidebarProps {
   onOpenGIS?: () => void;
-  isOpenMobile?: boolean;
+  mobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  onOpenGIS,
-  isOpenMobile = false,
-  onCloseMobile,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onCloseMobile }) => {
   const {
     activeModule,
     setActiveModule,
     canAccess,
+    currentUser,
     tourists,
     establishments,
     msmes,
@@ -58,7 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     events,
     notices,
     complaints,
-    feedbacks,
     tiacLogs,
   } = useTourism();
 
@@ -67,70 +62,84 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const navGroups: NavGroup[] = [
     {
-      groupName: 'Executive & Frontline',
+      groupName: 'Operations',
       items: [
         {
           key: 'dashboard',
-          label: 'Executive Dashboard',
+          label: 'Dashboard',
           code: 'DASH',
           icon: LayoutDashboard,
         },
         {
           key: 'tourists',
-          label: 'Tourist Arrival Management',
+          label: 'Tourist Arrivals',
           code: 'TAMS',
           icon: Users,
           badge: tourists.length,
-          badgeColor: 'bg-emerald-100 text-emerald-800',
+          badgeColor: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20',
         },
-        {
-          key: 'tiac',
-          label: 'Tourism Information & Assistance (TIAC / TFRGS)',
-          code: 'TIAC',
-          icon: HelpCircle,
-          badge: activeComplaintsCount > 0 ? `${activeComplaintsCount} alert` : tiacLogs.length + feedbacks.length,
-          badgeColor: activeComplaintsCount > 0 ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-teal-100 text-teal-800',
-        },
-      ],
-    },
-    {
-      groupName: 'Registry & GIS Spatial',
-      items: [
         {
           key: 'establishments',
-          label: 'Tourism Establishments',
+          label: 'Establishments',
           code: 'TED',
           icon: Building2,
           badge: establishments.length,
-          badgeColor: 'bg-blue-100 text-blue-800',
-        },
-        {
-          key: 'destinations',
-          label: 'Tourism Destinations & Attractions (DAIMS)',
-          code: 'DAIMS',
-          icon: MapPin,
-          badge: destinations.length,
-          badgeColor: 'bg-emerald-100 text-emerald-800',
+          badgeColor: 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20',
         },
         {
           key: 'msmes',
-          label: 'MSME Tourism Database',
+          label: 'MSME Directory',
           code: 'MSME',
           icon: Store,
           badge: msmes.length,
-          badgeColor: 'bg-amber-100 text-amber-800',
+          badgeColor: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+        },
+        {
+          key: 'destinations',
+          label: 'Destinations',
+          code: 'TDD',
+          icon: MapPin,
+          badge: destinations.length,
+          badgeColor: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+        },
+        {
+          key: 'tiac',
+          label: 'Visitor Assistance (TIAC)',
+          code: 'TIAC',
+          icon: HelpCircle,
+          badge: tiacLogs.length,
         },
       ],
     },
     {
-      groupName: 'Marketing & Events',
+      groupName: 'Governance & Promotion',
       items: [
         {
           key: 'events',
-          label: 'Events Management System',
+          label: 'Events & Programs',
           code: 'EMS',
           icon: Calendar,
           badge: events.length,
+        },
+        {
+          key: 'policy_regulation',
+          label: 'Policy & Regulation',
+          code: 'PSRU',
+          icon: Scale,
+          badge: pendingNoticesCount + activeComplaintsCount || undefined,
+          badgeColor: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
+        },
+        {
+          key: 'research_planning',
+          label: 'Research & Planning',
+          code: 'RPU',
+          icon: BookOpenCheck,
+        },
+        {
+          key: 'product_dev',
+          label: 'Product Development',
+          code: 'TPDU',
+          icon: Sparkles,
         },
         {
           key: 'marketing',
@@ -144,55 +153,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
           code: 'SMMS',
           icon: Share2,
         },
-      ],
-    },
-    {
-      groupName: 'Planning, Policy & Product',
-      items: [
-        {
-          key: 'product_dev',
-          label: 'Tourism Product Dev',
-          code: 'TPDU',
-          icon: Sparkles,
-        },
-        {
-          key: 'research_planning',
-          label: 'Research & Planning Unit',
-          code: 'RPU',
-          icon: BookOpenCheck,
-        },
-        {
-          key: 'policy_regulation',
-          label: 'Policy Support & Regulation',
-          code: 'PSRU',
-          icon: Scale,
-          badge: pendingNoticesCount + activeComplaintsCount || undefined,
-          badgeColor: 'bg-rose-100 text-rose-800 font-bold',
-        },
-      ],
-    },
-    {
-      groupName: 'Administration & Reports',
-      items: [
         {
           key: 'admin_finance',
-          label: 'Administrative & Finance',
+          label: 'Admin & Finance',
           code: 'AFS',
           icon: WalletCards,
         },
         {
           key: 'documents',
-          label: 'Document Management (DMS)',
+          label: 'Document Library',
           code: 'DMS',
           icon: FolderArchive,
         },
         {
           key: 'reports',
-          label: 'Report Generation Module',
+          label: 'DOT Reports & RGM',
           code: 'RGM',
           icon: FileSpreadsheet,
           badge: 'DOT',
-          badgeColor: 'bg-amber-100 text-amber-900 font-bold',
+          badgeColor: 'bg-indigo-600 text-white font-bold',
         },
       ],
     },
@@ -201,41 +180,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Mobile Backdrop */}
-      {isOpenMobile && (
+      {mobileOpen && (
         <div
-          id="sidebar-backdrop"
           onClick={onCloseMobile}
-          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-30 md:hidden animate-in fade-in duration-200 print:hidden"
-          aria-hidden="true"
+          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 md:hidden animate-in fade-in"
         />
       )}
 
       <aside
-        id="main-app-sidebar"
-        className={`
-          w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none
-          h-full overflow-y-auto
-          md:sticky md:top-0 md:h-full md:translate-x-0
-          fixed inset-y-0 left-0 top-[73px] sm:top-[77px] md:top-auto
-          z-40 md:z-20 transition-transform duration-200 ease-in-out shadow-2xl md:shadow-none
-          print:hidden
-          ${isOpenMobile ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        `}
+        className={`w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none h-screen transition-transform duration-200 z-50 fixed md:static inset-y-0 left-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
       >
-        {/* Office Header Indicator */}
-        <div className="p-3.5 border-b border-slate-800 bg-slate-950/40 shrink-0">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span>SYSTEM MODULE DIRECTORY</span>
+        {/* Official Brand Header with Logos */}
+        <div className="p-5 border-b border-slate-800 bg-slate-950/40">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center -space-x-2 shrink-0">
+              <img
+                src="/logo/LGU_LOGO1.png"
+                alt="LGU Malungon Seal"
+                className="w-10 h-10 object-contain rounded-full bg-white/10 p-0.5 border border-emerald-500/40 shadow-sm"
+              />
+              <img
+                src="/logo/TourismLogo.png"
+                alt="Tourism Office Logo"
+                className="w-10 h-10 object-contain rounded-full bg-white/10 p-0.5 border border-teal-500/40 shadow-sm"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-black text-white tracking-tight text-base leading-tight flex items-center gap-1.5">
+                <span>MTODMS</span>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono px-1.5 py-0.5 rounded border border-emerald-500/30">
+                  LGU
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5 font-medium">
+                Municipality of Malungon
+              </p>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5 font-medium">15 Integrated Operations Units</p>
+          <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[9px] font-mono uppercase tracking-wider text-slate-500">
+            <span>Tourism Office</span>
+            <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+              PWA Ready
+            </span>
+          </div>
         </div>
 
-        {/* Module Navigation Groups */}
-        <div className="flex-1 py-2 px-2.5 space-y-4 overflow-y-auto">
+        {/* Navigation Group Items */}
+        <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar text-sm space-y-4">
           {navGroups.map((group, gIdx) => (
-            <div key={gIdx} className="space-y-1">
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div key={gIdx} className="space-y-0.5">
+              <div className="px-6 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 {group.groupName}
               </div>
 
@@ -251,25 +247,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onClick={() => {
                       if (accessible) {
                         setActiveModule(item.key);
-                        onCloseMobile?.();
+                        if (onCloseMobile) onCloseMobile();
                       }
                     }}
-                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-all group ${
+                    className={`w-full flex items-center justify-between px-6 py-2.5 text-xs transition-colors group text-left ${
                       isActive
-                        ? 'bg-emerald-700 text-white font-semibold shadow-xs'
+                        ? 'bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-400 font-semibold'
                         : accessible
-                        ? 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        : 'text-slate-600 cursor-not-allowed opacity-50'
+                        ? 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                        : 'text-slate-600 cursor-not-allowed opacity-40'
                     }`}
                     title={!accessible ? 'Access restricted for current user role' : undefined}
                   >
-                    <div className="flex items-center space-x-2.5 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0">
                       <Icon
                         className={`w-4 h-4 shrink-0 transition-colors ${
-                          isActive ? 'text-white' : accessible ? 'text-emerald-400 group-hover:text-emerald-300' : 'text-slate-600'
+                          isActive
+                            ? 'text-indigo-400'
+                            : accessible
+                            ? 'text-slate-400 group-hover:text-white'
+                            : 'text-slate-600'
                         }`}
                       />
-                      <span className="truncate leading-tight text-left">{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                     </div>
 
                     <div className="flex items-center space-x-1 shrink-0 ml-1.5">
@@ -277,14 +277,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Lock className="w-3 h-3 text-slate-600" />
                       ) : item.badge !== undefined ? (
                         <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
-                            item.badgeColor || (isActive ? 'bg-emerald-800 text-white' : 'bg-slate-800 text-slate-300')
+                          className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                            item.badgeColor || (isActive ? 'bg-indigo-500/20 text-indigo-300' : 'bg-slate-800 text-slate-400')
                           }`}
                         >
                           {item.badge}
                         </span>
-                      ) : isActive ? (
-                        <ChevronRight className="w-3.5 h-3.5 text-emerald-200" />
                       ) : null}
                     </div>
                   </button>
@@ -292,16 +290,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               })}
             </div>
           ))}
-        </div>
+        </nav>
 
-        {/* Footer Info */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/60 text-[11px] text-slate-400 shrink-0">
-          <div className="flex items-center justify-between font-mono text-[10px]">
-            <span>Database: Online</span>
-            <span className="text-emerald-400 font-semibold">100% Synced</span>
-          </div>
-          <div className="text-[10px] text-slate-500 mt-1 truncate">
-            LGU Malungon Tourism Portal © 2026
+        {/* Sleek User Profile Footer */}
+        <div className="p-4 bg-slate-950/50 border-t border-slate-800">
+          <div className="flex items-center gap-3">
+            <img
+              src={currentUser.avatar}
+              alt={currentUser.name}
+              className="w-8 h-8 rounded-full bg-slate-700 object-cover border border-slate-700 shrink-0"
+            />
+            <div className="flex-1 overflow-hidden">
+              <p className="text-xs font-semibold text-white truncate">{currentUser.name}</p>
+              <p className="text-[10px] text-slate-500 truncate">{currentUser.role}</p>
+            </div>
           </div>
         </div>
       </aside>

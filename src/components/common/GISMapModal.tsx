@@ -29,8 +29,8 @@ interface GISMapModalProps {
 
 // Datum & Base Coordinates for Municipality of Malungon, Sarangani Province
 const MALUNGON_MUNICIPAL_HALL = {
-  lat: 6.3775,
-  lng: 125.2726,
+  lat: 6.2560,
+  lng: 125.2750,
   name: 'Malungon Municipal Hall',
   details: 'Municipal Tourism Office & Emergency DRRMO Command Base'
 };

@@ -6,7 +6,6 @@ import { AuditTrailModal } from './components/common/AuditTrailModal';
 import { BackupRestoreModal } from './components/common/BackupRestoreModal';
 import { NotificationModal } from './components/common/NotificationModal';
 import { GISMapModal } from './components/common/GISMapModal';
-import { WorkflowManualModal } from './components/common/WorkflowManualModal';
 
 // 15 System Module Views
 import { DashboardView } from './components/modules/DashboardView';
@@ -22,7 +21,6 @@ import { ProductDevelopmentView } from './components/modules/ProductDevelopmentV
 import { MarketingPromotionView } from './components/modules/MarketingPromotionView';
 import { SocialMediaView } from './components/modules/SocialMediaView';
 import { TIACView } from './components/modules/TIACView';
-import { FeedbackGrievanceView } from './components/modules/FeedbackGrievanceView';
 import { DocumentManagementView } from './components/modules/DocumentManagementView';
 import { ReportsView } from './components/modules/ReportsView';
 
@@ -37,14 +35,7 @@ const MainLayout: React.FC = () => {
   const [backupModalOpen, setBackupModalOpen] = useState(false);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const [gisModalOpen, setGisModalOpen] = useState(false);
-  const [manualModalOpen, setManualModalOpen] = useState(false);
-  const [selectedGisDestId, setSelectedGisDestId] = useState<string | undefined>(undefined);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const handleOpenGIS = (destId?: string) => {
-    setSelectedGisDestId(destId);
-    setGisModalOpen(true);
-  };
 
   // Check RBAC permission for current active module
   const hasAccess = canAccess(currentModule);
@@ -77,7 +68,7 @@ const MainLayout: React.FC = () => {
       case 'dashboard':
         return (
           <DashboardView
-            onOpenGIS={handleOpenGIS}
+            onOpenGIS={() => setGisModalOpen(true)}
             onOpenNotify={() => setNotificationModalOpen(true)}
           />
         );
@@ -104,42 +95,42 @@ const MainLayout: React.FC = () => {
       case 'social_media':
         return <SocialMediaView />;
       case 'tiac':
-        return <TIACView initialTab="assistance" />;
-      case 'feedback':
-        return <TIACView initialTab="tfrgs" />;
+        return <TIACView />;
       case 'documents':
         return <DocumentManagementView />;
       case 'reports':
         return <ReportsView />;
       default:
-        return <DashboardView onOpenGIS={() => setGisModalOpen(true)} />;
+        return (
+          <DashboardView
+            onOpenGIS={() => setGisModalOpen(true)}
+            onOpenNotify={() => setNotificationModalOpen(true)}
+          />
+        );
     }
   };
 
   return (
-    <div className="h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased overflow-hidden print:h-auto print:overflow-visible print:bg-white">
-      {/* Top Navbar */}
-      <Navbar
-        onOpenAudit={() => setAuditModalOpen(true)}
-        onOpenBackup={() => setBackupModalOpen(true)}
-        onOpenNotify={() => setNotificationModalOpen(true)}
+    <div className="flex h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden">
+      {/* Sleek Left Sidebar Navigation */}
+      <Sidebar
         onOpenGIS={() => setGisModalOpen(true)}
-        onOpenManual={() => setManualModalOpen(true)}
-        onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
-        mobileMenuOpen={mobileMenuOpen}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
-      {/* Main Container with Sidebar and Content View */}
-      <div className="flex-1 flex flex-row min-h-0 overflow-hidden relative print:overflow-visible print:h-auto print:static">
-        {/* Modular Left Sidebar Navigation */}
-        <Sidebar
-          isOpenMobile={mobileMenuOpen}
-          onCloseMobile={() => setMobileMenuOpen(false)}
+      {/* Main Column: Sleek Top Header & Scrollable Content */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Navbar
+          onOpenAudit={() => setAuditModalOpen(true)}
+          onOpenBackup={() => setBackupModalOpen(true)}
+          onOpenNotification={() => setNotificationModalOpen(true)}
           onOpenGIS={() => setGisModalOpen(true)}
+          onToggleMobileSidebar={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
         {/* Dynamic Center Work Area */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-slate-50/70 pb-16 print:overflow-visible print:h-auto print:p-0 print:m-0 print:bg-white">
+        <main className="flex-1 overflow-y-auto bg-slate-50 custom-scrollbar">
           {renderModule()}
         </main>
       </div>
@@ -159,15 +150,7 @@ const MainLayout: React.FC = () => {
       />
       <GISMapModal
         isOpen={gisModalOpen}
-        onClose={() => {
-          setGisModalOpen(false);
-          setSelectedGisDestId(undefined);
-        }}
-        selectedDestinationId={selectedGisDestId}
-      />
-      <WorkflowManualModal
-        isOpen={manualModalOpen}
-        onClose={() => setManualModalOpen(false)}
+        onClose={() => setGisModalOpen(false)}
       />
     </div>
   );
